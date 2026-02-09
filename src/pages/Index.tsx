@@ -5,9 +5,10 @@ import Welcome from '@/components/Welcome';
 import FAQs from '@/components/FAQs';
 import KudiChat from '@/components/KudiChat';
 import LawyersMap from '@/components/LawyersMap';
+import DocumentsUseful from '@/components/DocumentsUseful';
 
 const Index = () => {
-  const [currentPage, setCurrentPage] = React.useState<'welcome' | 'faqs' | 'chat' | 'map'>('welcome');
+  const [currentPage, setCurrentPage] = React.useState<'welcome' | 'faqs' | 'chat' | 'map' | 'documents'>('welcome');
   const [chatQuestion, setChatQuestion] = React.useState<string>('');
 
   const handleGetStarted = () => {
@@ -19,7 +20,7 @@ const Index = () => {
     setCurrentPage('chat');
   };
 
-  const handleNavigate = (page: 'welcome' | 'faqs' | 'chat' | 'map') => {
+  const handleNavigate = (page: 'welcome' | 'faqs' | 'chat' | 'map' | 'documents') => {
     if (page !== 'chat') {
       setChatQuestion(''); // Clear question when not going to chat
     }
@@ -34,6 +35,8 @@ const Index = () => {
         return <FAQs onExplainWithAI={handleExplainWithAI} />;
       case 'chat':
         return <KudiChat initialQuestion={chatQuestion} />;
+      case 'documents':
+        return <DocumentsUseful />;
       case 'map':
         return <LawyersMap />;
       default:

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useQuery } from '@tanstack/react-query';
+import { apiHelpers, apiConfig } from '@/lib/config';
 
 interface FAQsProps {
   onExplainWithAI: (question: string) => void;
@@ -71,32 +72,32 @@ const FAQs = ({ onExplainWithAI }: FAQsProps) => {
   const { data: apiData, isLoading, error } = useQuery({
     queryKey: ['faqs'],
     queryFn: async (): Promise<APIResponse> => {
-      console.log('Fetching FAQs from API...');
-      const response = await fetch('https://kudileya-app-backend.onrender.com/faqs');
+      apiHelpers.debugLog('Fetching FAQs from API...');
+      const response = await fetch(apiHelpers.getApiUrl('/faqs'));
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('FAQs received from API:', data);
+      apiHelpers.debugLog('FAQs received from API:', data);
       return data;
     },
-    retry: 1,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: apiConfig.retryCount,
+    staleTime: apiConfig.cacheTime,
   });
 
   // Process API data or use fallback
   const { temas, faqs } = React.useMemo(() => {
     if (error || !apiData?.temas) {
-      console.log('API error or no data, using fallback FAQs:', error);
+      apiHelpers.debugLog('API error or no data, using fallback FAQs:', error);
       return {
         temas: null,
         faqs: fallbackFAQs
       };
     }
     
-    console.log('Using API data with themes');
+    apiHelpers.debugLog('Using API data with themes');
     return {
       temas: apiData.temas,
       faqs: []

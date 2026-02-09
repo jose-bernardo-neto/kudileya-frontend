@@ -1,10 +1,11 @@
 
 import React from 'react';
-import { Menu, X, MessageCircle, HelpCircle, Home, Sun, Moon, MapPin } from 'lucide-react';
+import { Menu, X, MessageCircle, HelpCircle, Home, Sun, Moon, MapPin, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
 import LanguageSelector from '@/components/LanguageSelector';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { apiHelpers, featureFlags, uiConfig } from '@/lib/config';
 
 // WhatsApp icon component
 const WhatsAppIcon = () => (
@@ -15,8 +16,8 @@ const WhatsAppIcon = () => (
 
 interface LayoutProps {
   children: React.ReactNode;
-  currentPage: 'welcome' | 'faqs' | 'chat' | 'map';
-  onNavigate: (page: 'welcome' | 'faqs' | 'chat' | 'map') => void;
+  currentPage: 'welcome' | 'faqs' | 'chat' | 'map' | 'documents';
+  onNavigate: (page: 'welcome' | 'faqs' | 'chat' | 'map' | 'documents') => void;
 }
 
 const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
@@ -28,6 +29,7 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
     { id: 'welcome' as const, label: t('nav.welcome'), icon: Home },
     { id: 'faqs' as const, label: t('nav.faqs'), icon: HelpCircle },
     { id: 'chat' as const, label: t('nav.chat'), icon: MessageCircle },
+    { id: 'documents' as const, label: t('nav.documents'), icon: FileText },
     { id: 'map' as const, label: t('nav.map'), icon: MapPin },
   ];
 
@@ -119,17 +121,23 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
       </main>
 
       {/* WhatsApp Floating Button */}
-      <div className="fixed bottom-20 right-4 z-50">
-        <a
-          href="https://wa.me/924643714"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-14 h-14 rounded-full bg-[#25D366] hover:bg-[#20c55a] shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center"
-          title="Contatar via WhatsApp"
-        >
-          <WhatsAppIcon />
-        </a>
-      </div>
+      {featureFlags.enableWhatsapp && (
+        <div className="fixed bottom-20 right-4 z-50">
+          <a
+            href={apiHelpers.getWhatsAppUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-14 h-14 rounded-full shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center"
+            style={{
+              backgroundColor: uiConfig.whatsappColor,
+              ':hover': { backgroundColor: `${uiConfig.whatsappColor}dd` }
+            }}
+            title="Contatar via WhatsApp"
+          >
+            <WhatsAppIcon />
+          </a>
+        </div>
+      )}
 
       {/* Bottom Navigation (Native Mobile Style) */}
       <nav className="bg-card border-t border-border px-4 py-2">
@@ -143,9 +151,12 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
                 onClick={() => onNavigate(item.id)}
                 className={`flex-1 flex flex-col items-center space-y-1 p-2 ${
                   currentPage === item.id 
-                    ? 'text-[#F0A22E]' 
+                    ? 'hover:bg-accent'
                     : 'text-muted-foreground'
                 }`}
+                style={{
+                  color: currentPage === item.id ? uiConfig.brandPrimaryColor : undefined
+                }}
               >
                 <Icon size={20} />
                 <span className="text-xs font-medium">{item.label}</span>

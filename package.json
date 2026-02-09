@@ -8,7 +8,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "validate-env": "node scripts/validate-env.cjs",
+    "check-config": "npm run validate-env",
+    "check-setup": "node scripts/check-setup.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

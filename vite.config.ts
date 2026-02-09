@@ -19,4 +19,11 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Environment variables configuration
+  define: {
+    // Expose config object for debugging in development
+    __DEV__: mode === 'development',
+  },
+  // Ensure all VITE_ prefixed env vars are loaded
+  envPrefix: 'VITE_',
 }));

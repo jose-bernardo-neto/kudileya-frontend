@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { apiHelpers, apiConfig } from '@/lib/config';
 
 interface Message {
   id: string;
@@ -141,7 +142,7 @@ const KudiChat = ({ initialQuestion }: KudiChatProps) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://kudileya-app-backend.onrender.com/perguntar', {
+      const response = await fetch(apiHelpers.getApiUrl('/perguntar'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +168,7 @@ const KudiChat = ({ initialQuestion }: KudiChatProps) => {
 
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
-      console.error('Error sending message:', error);
+      apiHelpers.errorLog('Error sending message:', error);
       
       const fallbackMessage: Message = {
         id: (Date.now() + 1).toString(),

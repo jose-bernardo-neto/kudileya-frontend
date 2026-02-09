@@ -111,12 +111,29 @@ bun install
 3. **Configure as variáveis de ambiente**
 ```bash
 # Copie o arquivo de exemplo
-cp .env.example .env.local
+cp .env.example .env
 
-# Edite as variáveis necessárias
-# VITE_GOOGLE_MAPS_API_KEY=sua_chave_aqui
-# VITE_API_URL=https://kudileya-app-backend.onrender.com
+# Edite as variáveis necessárias no arquivo .env
+# Principais configurações:
 ```
+
+**Variáveis Essenciais**:
+```bash
+# API Configuration
+VITE_API_BASE_URL=http://localhost:3000
+VITE_API_PROD_URL=https://kudileya-app-backend.onrender.com
+
+# Contact Information  
+VITE_WHATSAPP_NUMBER=924643714
+VITE_SUPPORT_EMAIL=contato@kudileya.com
+
+# Feature Flags
+VITE_ENABLE_WHATSAPP=true
+VITE_ENABLE_DOCUMENTS=true
+VITE_DEBUG_API=true
+```
+
+> 📋 **Documentação completa**: Veja [ENV_DOCS.md](ENV_DOCS.md) para todas as variáveis disponíveis.
 
 4. **Execute em desenvolvimento**
 ```bash
@@ -186,13 +203,92 @@ src/
 - `npm run lint` - Executa linting
 - `npm run preview` - Visualiza build local
 
+## ⚙️ Configuração de Ambiente
+
+### 🌍 **Variáveis de Ambiente**
+
+O projeto utiliza um sistema robusto de configuração por variáveis de ambiente para separar informações sensíveis e configurações específicas por ambiente.
+
+#### **Configuração Centralizada**
+```typescript
+// src/lib/config.ts - Sistema centralizado de configuração
+import { config, apiHelpers } from '@/lib/config';
+
+// Usar configurações
+const apiUrl = apiHelpers.getApiUrl('/documents');
+const whatsappUrl = apiHelpers.getWhatsAppUrl();
+
+// Feature flags
+if (config.features.enableDocuments) {
+  // Funcionalidade ativada
+}
+```
+
+#### **Principais Configurações**
+| Categoria | Variáveis | Descrição |
+|-----------|-----------|-----------|
+| **API** | `VITE_API_BASE_URL`, `VITE_API_PROD_URL` | URLs de desenvolvimento e produção |
+| **Contato** | `VITE_WHATSAPP_NUMBER`, `VITE_SUPPORT_EMAIL` | Informações de contato |
+| **Features** | `VITE_ENABLE_*` | Flags para ativar/desativar funcionalidades |
+| **UI** | `VITE_BRAND_PRIMARY_COLOR`, `VITE_DEFAULT_LANGUAGE` | Configurações de interface |
+| **Debug** | `VITE_DEBUG_API`, `VITE_DEV_MODE` | Logs e modo desenvolvimento |
+
+#### **Segurança**
+- ✅ **URLs da API**: Não hardcoded, configurável por ambiente
+- ✅ **Informações de contato**: Extraídas para variáveis
+- ✅ **Feature flags**: Controle granular de funcionalidades
+- ✅ **Valores padrão**: Fallbacks seguros para todas as configurações
+- ✅ **Validação**: Verificação de tipos e formatos
+
+> 📖 **Documentação completa:** [ENV_DOCS.md](ENV_DOCS.md)
+
+### 🔧 **Configuração por Ambiente**
+
+```bash
+# Desenvolvimento
+VITE_API_BASE_URL=http://localhost:3000
+VITE_DEBUG_API=true
+VITE_DEV_MODE=true
+
+# Produção  
+VITE_API_BASE_URL=https://api.kudileya.com
+VITE_DEBUG_API=false
+VITE_SHOW_ERROR_DETAILS=false
+```
+
 ## 🌐 API Integration
 
-O projeto se conecta com a API da Kudileya para:
+### **Configuração Dinâmica**
+O projeto agora utiliza **configuração por ambiente** para todas as integrações:
 
-- **FAQs Dinâmicos**: `https://kudileya-app-backend.onrender.com/faqs`
-- **Respostas do Chat**: Integração com serviços de IA
-- **Dados do Mapa**: Informações de tribunais e escritórios
+```typescript
+// Configuração automática baseada no ambiente
+const apiUrl = apiHelpers.getApiUrl('/documents'); // ✅ Configurável
+const whatsappUrl = apiHelpers.getWhatsAppUrl();   // ✅ Configurável
+
+// Antes (hardcoded) ❌
+// const apiUrl = 'http://localhost:3000/api/documents'; 
+```
+
+### **Endpoints Integrados**
+- **📄 Documentos**: `${API_BASE_URL}/api/documents` - Listagem e download
+- **❓ FAQs Dinâmicos**: `${API_BASE_URL}/faqs` - Perguntas categorizadas  
+- **🤖 Chat com IA**: `${API_BASE_URL}/perguntar` - Respostas inteligentes
+- **📞 Contato WhatsApp**: `wa.me/${WHATSAPP_NUMBER}` - Suporte direto
+
+### **Configuração de Ambiente**
+```bash
+# Desenvolvimento
+VITE_API_BASE_URL=http://localhost:3000
+
+# Produção
+VITE_API_BASE_URL=https://kudileya-app-backend.onrender.com
+
+# Contato
+VITE_WHATSAPP_NUMBER=924643714
+```
+
+> 🔧 **Flexibilidade total**: Todas as URLs e configurações são agora variáveis de ambiente.
 
 ## 🎨 Personalização
 
