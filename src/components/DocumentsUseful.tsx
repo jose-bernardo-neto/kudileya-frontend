@@ -69,7 +69,10 @@ const DocumentsUseful = () => {
 		staleTime: apiConfig.cacheTime,
 	});
 
-	const documents = documentsResponse?.data || [];
+	const documents = React.useMemo(
+		() => documentsResponse?.data || [],
+		[documentsResponse?.data],
+	);
 
 	// Category definitions
 	const categories = [
@@ -170,7 +173,7 @@ const DocumentsUseful = () => {
 	const handleDownload = async (doc: Document) => {
 		try {
 			const response = await fetch(
-				apiHelpers.getApiUrl(`/api/v1/documents/${doc.id}`),
+				apiHelpers.getApiUrl(`/api/v1/documents/${doc.id}/download`),
 			);
 			if (!response.ok) throw new Error('Download failed');
 
