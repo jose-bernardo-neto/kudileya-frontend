@@ -36,10 +36,10 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Mobile Native Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-50">
+      {/* Fixed Top Navigation Bar (Pinterest Style) */}
+      <header className="bg-card border-b border-border fixed top-0 left-0 right-0 z-50 shadow-sm">
         <div className="px-4 py-3">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center max-w-screen-2xl mx-auto">
             {/* Logo */}
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 orange-gradient rounded-lg flex items-center justify-center">
@@ -50,19 +50,39 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
               </span>
             </div>
 
-            {/* Language Selector, Maps, Theme toggle and mobile menu */}
+            {/* Center Navigation Icons */}
+            <nav className="hidden md:flex items-center space-x-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Button
+                    key={item.id}
+                    variant="ghost"
+                    size="lg"
+                    onClick={() => onNavigate(item.id)}
+                    className={`p-3 hover:bg-accent transition-colors ${
+                      currentPage === item.id 
+                        ? 'bg-accent' 
+                        : ''
+                    }`}
+                    title={item.label}
+                  >
+                    <Icon 
+                      size={24} 
+                      className={currentPage === item.id ? 'font-bold' : ''}
+                      strokeWidth={currentPage === item.id ? 2.5 : 2}
+                      style={{
+                        color: currentPage === item.id ? uiConfig.brandPrimaryColor : undefined
+                      }}
+                    />
+                  </Button>
+                );
+              })}
+            </nav>
+
+            {/* Right Side Actions */}
             <div className="flex items-center space-x-2">
               <LanguageSelector />
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onNavigate('map')}
-                className="text-foreground hover:bg-accent"
-                title={t('nav.map')}
-              >
-                <MapPin size={20} />
-              </Button>
               
               <Button
                 variant="ghost"
@@ -73,10 +93,11 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </Button>
               
+              {/* Mobile Menu Toggle */}
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-foreground hover:bg-accent"
+                className="md:hidden text-foreground hover:bg-accent"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
                 {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -85,9 +106,9 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation Dropdown */}
         {mobileMenuOpen && (
-          <div className="bg-card border-t border-border animate-fade-in">
+          <div className="md:hidden bg-card border-t border-border animate-fade-in">
             <div className="px-4 py-2 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -115,22 +136,21 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
         )}
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 bg-background">
+      {/* Main Content with top padding to account for fixed header */}
+      <main className="flex-1 bg-background pt-16">
         {children}
       </main>
 
       {/* WhatsApp Floating Button */}
       {featureFlags.enableWhatsapp && (
-        <div className="fixed bottom-20 right-4 z-50">
+        <div className="fixed bottom-6 right-6 z-50">
           <a
             href={apiHelpers.getWhatsAppUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-14 h-14 rounded-full shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center"
+            className="w-14 h-14 rounded-full shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center hover:opacity-90"
             style={{
-              backgroundColor: uiConfig.whatsappColor,
-              ':hover': { backgroundColor: `${uiConfig.whatsappColor}dd` }
+              backgroundColor: uiConfig.whatsappColor
             }}
             title="Contatar via WhatsApp"
           >
@@ -138,33 +158,6 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
           </a>
         </div>
       )}
-
-      {/* Bottom Navigation (Native Mobile Style) */}
-      <nav className="bg-card border-t border-border px-4 py-2">
-        <div className="flex justify-around items-center">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Button
-                key={item.id}
-                variant="ghost"
-                onClick={() => onNavigate(item.id)}
-                className={`flex-1 flex flex-col items-center space-y-1 p-2 ${
-                  currentPage === item.id 
-                    ? 'hover:bg-accent'
-                    : 'text-muted-foreground'
-                }`}
-                style={{
-                  color: currentPage === item.id ? uiConfig.brandPrimaryColor : undefined
-                }}
-              >
-                <Icon size={20} />
-                <span className="text-xs font-medium">{item.label}</span>
-              </Button>
-            );
-          })}
-        </div>
-      </nav>
     </div>
   );
 };
