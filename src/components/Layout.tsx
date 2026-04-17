@@ -37,7 +37,13 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
 		{ id: 'faqs' as const, label: t('nav.faqs'), icon: HelpCircle },
 		{ id: 'chat' as const, label: t('nav.chat'), icon: MessageCircle },
 		...(featureFlags.enableDocuments
-			? [{ id: 'documents' as const, label: t('nav.documents'), icon: FileText }]
+			? [
+					{
+						id: 'documents' as const,
+						label: t('nav.documents'),
+						icon: FileText,
+					},
+				]
 			: []),
 		...(featureFlags.enableMap
 			? [{ id: 'map' as const, label: t('nav.map'), icon: MapPin }]
