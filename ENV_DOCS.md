@@ -47,6 +47,14 @@ Para que as mudanças tenham efeito, reinicie o servidor de desenvolvimento.
 | `VITE_ENABLE_DOCUMENTS` | Ativar aba de documentos | `true` | `true` / `false` |
 | `VITE_ENABLE_ANIMATIONS` | Ativar animações na UI | `true` | `true` / `false` |
 
+**Detalhes das Feature Flags:**
+
+- **`VITE_ENABLE_MAP`**: Quando `false`, remove completamente a aba/link de navegação do mapa. Útil para desabilitar a funcionalidade se não houver Google Maps API Key ou para economizar quota da API. Requer que `VITE_GOOGLE_MAPS_API_KEY` esteja configurado quando habilitado.
+
+- **`VITE_ENABLE_DOCUMENTS`**: Controla a exibição da aba de documentos úteis. Desabilite se não houver documentos disponíveis ou se essa funcionalidade não for necessária no ambiente atual.
+
+- **`VITE_ENABLE_WHATSAPP`**: Controla o botão flutuante do WhatsApp. Desabilite em ambientes onde o suporte via WhatsApp não está disponível.
+
 ### 🎨 **Configuração da Interface**
 
 | Variável | Descrição | Padrão | Exemplo |

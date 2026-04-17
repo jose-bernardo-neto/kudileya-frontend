@@ -31,12 +31,17 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
 	const { theme, toggleTheme } = useTheme();
 	const { t } = useLanguage();
 
+	// Build navigation items based on feature flags
 	const navItems = [
 		{ id: 'welcome' as const, label: t('nav.welcome'), icon: Home },
 		{ id: 'faqs' as const, label: t('nav.faqs'), icon: HelpCircle },
 		{ id: 'chat' as const, label: t('nav.chat'), icon: MessageCircle },
-		{ id: 'documents' as const, label: t('nav.documents'), icon: FileText },
-		{ id: 'map' as const, label: t('nav.map'), icon: MapPin },
+		...(featureFlags.enableDocuments
+			? [{ id: 'documents' as const, label: t('nav.documents'), icon: FileText }]
+			: []),
+		...(featureFlags.enableMap
+			? [{ id: 'map' as const, label: t('nav.map'), icon: MapPin }]
+			: []),
 	];
 
 	return (

@@ -18,19 +18,21 @@ O componente `LawyersMap` exibe um mapa interativo mostrando tribunais e escrit�
 
 ```typescript
 const getUserLocation = (): Promise<google.maps.LatLngLiteral> => {
-  // Tenta obter localização do usuário
-  // Timeout: 5 segundos
-  // Fallback: Luanda (-8.839987, 13.289436)
-}
+	// Tenta obter localização do usuário
+	// Timeout: 5 segundos
+	// Fallback: Luanda (-8.839987, 13.289436)
+};
 ```
 
 **Comportamento:**
+
 - Solicita permissão de geolocalização ao usuário
 - Timeout de 5 segundos
 - Se falhar ou usuário negar: usa coordenadas de Luanda
 - Exibe mensagem no console sobre o status
 
 **Coordenadas de Fallback:**
+
 ```typescript
 const LUANDA_COORDS = { lat: -8.839987, lng: 13.289436 };
 const GEO_TIMEOUT = 5000; // 5 segundos
@@ -40,24 +42,23 @@ const GEO_TIMEOUT = 5000; // 5 segundos
 
 ```typescript
 const searchPlaces = async (searchType: SearchType) => {
-  // searchType: 'tribunais' | 'escritorios'
-  
-  // Termos de busca:
-  // - Tribunais: 'tribunal'
-  // - Escritórios: 'escritório advocacia'
-  
-  // Raio de busca: 20km do centro do mapa
-}
+	// searchType: 'tribunais' | 'escritorios'
+	// Termos de busca:
+	// - Tribunais: 'tribunal'
+	// - Escritórios: 'escritório advocacia'
+	// Raio de busca: 20km do centro do mapa
+};
 ```
 
 **Tipos de Busca:**
 
-| Tipo | Keyword | Cor do Marcador | Ícone |
-|------|---------|-----------------|-------|
-| Tribunais | `tribunal` | Vermelho | Red Dot |
-| Escritórios | `escritório advocacia` | Azul | Blue Dot |
+| Tipo        | Keyword                | Cor do Marcador | Ícone    |
+| ----------- | ---------------------- | --------------- | -------- |
+| Tribunais   | `tribunal`             | Vermelho        | Red Dot  |
+| Escritórios | `escritório advocacia` | Azul            | Blue Dot |
 
 **Funcionalidades:**
+
 - Limpa marcadores anteriores
 - Busca num raio de 20km do centro atual do mapa
 - Cria marcadores com animação DROP
@@ -71,17 +72,14 @@ const searchPlaces = async (searchType: SearchType) => {
 Localização: Canto superior esquerdo do mapa
 
 ```tsx
-<Card className="absolute top-4 left-4 z-10">
-  <Button onClick={() => searchPlaces('tribunais')}>
-    🔴 Tribunais
-  </Button>
-  <Button onClick={() => searchPlaces('escritorios')}>
-    🔵 Escritórios
-  </Button>
+<Card className='absolute top-4 left-4 z-10'>
+	<Button onClick={() => searchPlaces('tribunais')}>🔴 Tribunais</Button>
+	<Button onClick={() => searchPlaces('escritorios')}>🔵 Escritórios</Button>
 </Card>
 ```
 
 **Estados dos Botões:**
+
 - **Ativo**: Background colorido (vermelho/azul) + texto bold
 - **Inativo**: Outline (borda)
 - **Loading**: Ícone de loading spinner
@@ -92,20 +90,19 @@ Localização: Canto superior esquerdo do mapa
 Aparece quando usuário clica em um marcador:
 
 ```tsx
-{selectedPlace && (
-  <Card className="absolute bottom-4 left-4 right-4 z-10">
-    - Nome do lugar
-    - Tipo (Tribunal/Escritório)
-    - Endereço
-    - Telefone (clicável: tel:)
-    - Website (clicável: nova aba)
-    - Avaliação (estrelas)
-    - Botão "Obter Direções" (abre Google Maps)
-  </Card>
-)}
+{
+	selectedPlace && (
+		<Card className='absolute bottom-4 left-4 right-4 z-10'>
+			- Nome do lugar - Tipo (Tribunal/Escritório) - Endereço - Telefone
+			(clicável: tel:) - Website (clicável: nova aba) - Avaliação (estrelas) -
+			Botão "Obter Direções" (abre Google Maps)
+		</Card>
+	);
+}
 ```
 
 **Campos Exibidos:**
+
 - ✅ **Nome**: sempre exibido
 - ✅ **Endereço**: sempre exibido
 - ❔ **Telefone**: apenas se disponível
@@ -115,13 +112,14 @@ Aparece quando usuário clica em um marcador:
 #### Estados de Loading
 
 ```tsx
-{!isLoaded && (
-  <div className="loading">
-    <Loader2 />
-    Carregando mapa...
-    Obtendo sua localização...
-  </div>
-)}
+{
+	!isLoaded && (
+		<div className='loading'>
+			<Loader2 />
+			Carregando mapa... Obtendo sua localização...
+		</div>
+	);
+}
 ```
 
 #### Tela de Erro
@@ -130,19 +128,15 @@ Exibida quando há falha ao carregar a API:
 
 ```tsx
 if (hasError) {
-  return (
-    <Card>
-      <AlertCircle /> Erro no Mapa
-      {errorMessage}
-      
-      Possíveis soluções:
-      - Verificar se a API Key está configurada
-      - Habilitar Maps JavaScript API e Places API
-      - Verificar conexão com internet
-      
-      <Button>Tentar Novamente</Button>
-    </Card>
-  );
+	return (
+		<Card>
+			<AlertCircle /> Erro no Mapa
+			{errorMessage}
+			Possíveis soluções: - Verificar se a API Key está configurada - Habilitar
+			Maps JavaScript API e Places API - Verificar conexão com internet
+			<Button>Tentar Novamente</Button>
+		</Card>
+	);
 }
 ```
 
@@ -152,13 +146,13 @@ if (hasError) {
 
 ```typescript
 interface Place {
-  id: string;                    // place_id do Google ou timestamp
-  name: string;                  // Nome do lugar
-  address: string;               // Endereço (vicinity)
-  phone?: string;                // formatted_phone_number
-  website?: string;              // Website URL
-  rating?: number;               // Avaliação 1-5
-  position: LatLng | LatLngLiteral;  // Coordenadas
+	id: string; // place_id do Google ou timestamp
+	name: string; // Nome do lugar
+	address: string; // Endereço (vicinity)
+	phone?: string; // formatted_phone_number
+	website?: string; // Website URL
+	rating?: number; // Avaliação 1-5
+	position: LatLng | LatLngLiteral; // Coordenadas
 }
 ```
 
@@ -249,7 +243,6 @@ Habilitar as seguintes APIs:
 
 1. **Maps JavaScript API**
    - Para renderização do mapa
-   
 2. **Places API**
    - Para busca de lugares (nearbySearch)
 
@@ -257,6 +250,7 @@ Habilitar as seguintes APIs:
    - Para melhorar precisão da localização
 
 **Configurar restrições de API Key:**
+
 - Tipo: Aplicações web
 - Referenciadores HTTP: adicionar domínio do site
 - APIs restritas: Maps JavaScript API, Places API
@@ -270,6 +264,7 @@ script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=pl
 ```
 
 **Parâmetros importantes:**
+
 - `key`: API Key do Google Maps
 - `libraries=places`: Carrega biblioteca Places
 - `loading=async`: Carregamento assíncrono
@@ -331,8 +326,8 @@ const markersRef = useRef<google.maps.Marker[]>([]);
 
 ```typescript
 const clearMarkers = () => {
-  markersRef.current.forEach((marker) => marker.setMap(null));
-  markersRef.current = [];
+	markersRef.current.forEach((marker) => marker.setMap(null));
+	markersRef.current = [];
 };
 
 // Chamado em:
@@ -344,7 +339,7 @@ const clearMarkers = () => {
 
 ```typescript
 setTimeout(() => {
-  searchPlaces('tribunais');
+	searchPlaces('tribunais');
 }, 500);
 ```
 
@@ -354,19 +349,20 @@ setTimeout(() => {
 
 ```typescript
 googleMapRef.current = new google.maps.Map(mapRef.current, {
-  center: location,           // Localização do usuário
-  zoom: 12,                   // Nível de zoom inicial
-  disableDefaultUI: false,    // Mantém controles padrão
-  zoomControl: true,          // Botões de zoom
-  mapTypeControl: false,      // Sem botão satélite/mapa
-  streetViewControl: false,   // Sem Street View
-  styles: [                   // Remove POIs padrão
-    {
-      featureType: 'poi',
-      elementType: 'labels',
-      stylers: [{ visibility: 'off' }],
-    },
-  ],
+	center: location, // Localização do usuário
+	zoom: 12, // Nível de zoom inicial
+	disableDefaultUI: false, // Mantém controles padrão
+	zoomControl: true, // Botões de zoom
+	mapTypeControl: false, // Sem botão satélite/mapa
+	streetViewControl: false, // Sem Street View
+	styles: [
+		// Remove POIs padrão
+		{
+			featureType: 'poi',
+			elementType: 'labels',
+			stylers: [{ visibility: 'off' }],
+		},
+	],
 });
 ```
 
@@ -397,7 +393,7 @@ icon: {
 ### Animação
 
 ```typescript
-animation: google.maps.Animation.DROP
+animation: google.maps.Animation.DROP;
 ```
 
 Marcadores "caem" do topo quando criados.
@@ -513,10 +509,11 @@ console.error('Erro ao inicializar mapa:', error);
 **Causa**: Script não carregou a tempo
 
 **Solução**:
+
 ```typescript
 // Já implementado: verificação de script existente
 const existingScript = document.querySelector(
-  'script[src*="maps.googleapis.com"]'
+	'script[src*="maps.googleapis.com"]',
 );
 ```
 
@@ -528,7 +525,8 @@ const existingScript = document.querySelector(
 
 ### 3. Marcadores não aparecem
 
-**Causa**: 
+**Causa**:
+
 - Places API não encontrou resultados
 - API Key sem permissão para Places API
 
