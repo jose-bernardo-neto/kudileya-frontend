@@ -30,6 +30,15 @@ interface KudiChatProps {
 	initialQuestion?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Constantes de histórico / contexto
+// ---------------------------------------------------------------------------
+const STORAGE_KEY = 'kudileya-chat-history';
+/** Máximo de mensagens mantidas no localStorage. As mais antigas são descartadas. */
+const MAX_MESSAGES = 50;
+/** Nº de mensagens anteriores enviadas à API como janela de contexto. */
+const CONTEXT_WINDOW = 5;
+
 const KudiChat = ({ initialQuestion }: KudiChatProps) => {
 	const [messages, setMessages] = React.useState<Message[]>([]);
 	const [input, setInput] = React.useState('');
@@ -58,7 +67,7 @@ const KudiChat = ({ initialQuestion }: KudiChatProps) => {
 
 	// Load messages from localStorage on component mount
 	React.useEffect(() => {
-		const savedMessages = localStorage.getItem('kudileya-chat-history');
+		const savedMessages = localStorage.getItem(STORAGE_KEY);
 		if (savedMessages) {
 			try {
 				const parsed = JSON.parse(savedMessages);
@@ -100,10 +109,11 @@ const KudiChat = ({ initialQuestion }: KudiChatProps) => {
 		}
 	}, [speechError, toast, t]);
 
-	// Save messages to localStorage whenever messages change
+	// Save messages to localStorage — mantém apenas as últimas MAX_MESSAGES
 	React.useEffect(() => {
 		if (messages.length > 0) {
-			localStorage.setItem('kudileya-chat-history', JSON.stringify(messages));
+			const trimmed = messages.slice(-MAX_MESSAGES);
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
 		}
 	}, [messages]);
 
@@ -114,7 +124,7 @@ const KudiChat = ({ initialQuestion }: KudiChatProps) => {
 
 	const clearChat = () => {
 		setMessages([]);
-		localStorage.removeItem('kudileya-chat-history');
+		localStorage.removeItem(STORAGE_KEY);
 		stopSpeaking(); // Stop any ongoing speech
 		toast({
 			title: t('kudichat.cleared'),
@@ -153,14 +163,23 @@ const KudiChat = ({ initialQuestion }: KudiChatProps) => {
 		setIsLoading(true);
 
 		try {
+			// Janela de contexto: últimas CONTEXT_WINDOW mensagens antes da nova
+			const contextMessages = messages.slice(-CONTEXT_WINDOW).map((msg) => ({
+				role: msg.sender === 'user' ? 'user' : 'assistant',
+				content: msg.content,
+			}));
+
+			const payload = {
+				question: userMessage.content,
+				context: contextMessages,
+			};
+
 			const response = await fetch(apiHelpers.getApiUrl('/api/v1/ask'), {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({
-					question: userMessage.content,
-				}),
+				body: JSON.stringify(payload),
 			});
 
 			if (!response.ok) {
