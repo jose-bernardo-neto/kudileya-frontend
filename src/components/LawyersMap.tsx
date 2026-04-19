@@ -1,461 +1,430 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { MapPin, Phone, Globe, Star, AlertCircle, Loader2, Search } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { AlertCircle, Loader2, Navigation, MapPin, Scale, Briefcase, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { servicesConfig } from '@/lib/config';
 
-// Coordenadas de Luanda como fallback
-const LUANDA_COORDS = { lng: 13.289436, lat: -8.839987 };
-const GEO_TIMEOUT = 5000; // 5 segundos
+// ---------------------------------------------------------------------------
+// Dados estáticos
+// ---------------------------------------------------------------------------
 
-interface Place {
+interface Location {
   id: string;
-  name: string;
-  address: string;
-  phone?: string;
-  website?: string;
-  rating?: number;
-  position: [number, number]; // [lng, lat]
+  nome: string;
+  lat: number;
+  lng: number;
+  provincia: string;
+  tipo: 'tribunal' | 'escritorio';
 }
+
+const TRIBUNAIS: Location[] = [
+  { id: 't1',  tipo: 'tribunal', nome: 'Tribunal Provincial de Luanda',       lat: -8.8368,  lng: 13.2342, provincia: 'Luanda'   },
+  { id: 't2',  tipo: 'tribunal', nome: 'Tribunal Municipal do Cazenga',        lat: -8.7981,  lng: 13.2947, provincia: 'Luanda'   },
+  { id: 't3',  tipo: 'tribunal', nome: 'Tribunal Supremo de Angola',           lat: -8.8200,  lng: 13.2300, provincia: 'Luanda'   },
+  { id: 't4',  tipo: 'tribunal', nome: 'Tribunal Municipal de Viana',          lat: -8.9048,  lng: 13.3740, provincia: 'Luanda'   },
+  { id: 't5',  tipo: 'tribunal', nome: 'Tribunal Municipal do Kilamba Kiaxi',  lat: -8.8600,  lng: 13.3200, provincia: 'Luanda'   },
+  { id: 't6',  tipo: 'tribunal', nome: 'Tribunal Provincial de Benguela',      lat: -12.5760, lng: 13.4052, provincia: 'Benguela' },
+  { id: 't7',  tipo: 'tribunal', nome: 'Tribunal Provincial do Huambo',        lat: -12.7763, lng: 15.7395, provincia: 'Huambo'  },
+  { id: 't8',  tipo: 'tribunal', nome: 'Tribunal Provincial do Lubango',       lat: -14.9177, lng: 13.4921, provincia: 'Huíla'   },
+  { id: 't9',  tipo: 'tribunal', nome: 'Tribunal Provincial de Cabinda',       lat: -5.5500,  lng: 12.1910, provincia: 'Cabinda'  },
+  { id: 't10', tipo: 'tribunal', nome: 'Tribunal Provincial do Bié',           lat: -12.3560, lng: 17.0608, provincia: 'Bié'      },
+];
+
+const ESCRITORIOS: Location[] = [
+  { id: 'e1',  tipo: 'escritorio', nome: 'EDGE – Escrit. de Direito e Gestão', lat: -8.8200,  lng: 13.2350, provincia: 'Luanda'   },
+  { id: 'e2',  tipo: 'escritorio', nome: 'BLP Angola',                          lat: -8.8283,  lng: 13.2440, provincia: 'Luanda'   },
+  { id: 'e3',  tipo: 'escritorio', nome: 'Sérvulo & Associados Angola',         lat: -8.8150,  lng: 13.2390, provincia: 'Luanda'   },
+  { id: 'e4',  tipo: 'escritorio', nome: 'Miranda & Associados Angola',         lat: -8.8400,  lng: 13.2510, provincia: 'Luanda'   },
+  { id: 'e5',  tipo: 'escritorio', nome: 'Linklaters Angola',                   lat: -8.8310,  lng: 13.2470, provincia: 'Luanda'   },
+  { id: 'e6',  tipo: 'escritorio', nome: 'AA&A – Alves, Almada & Associados',  lat: -8.9100,  lng: 13.1800, provincia: 'Luanda'   },
+  { id: 'e7',  tipo: 'escritorio', nome: 'Gabinete Jurídico Benguela',          lat: -12.5800, lng: 13.4100, provincia: 'Benguela' },
+  { id: 'e8',  tipo: 'escritorio', nome: 'Escritório Jurídico do Huambo',       lat: -12.7700, lng: 15.7350, provincia: 'Huambo'  },
+  { id: 'e9',  tipo: 'escritorio', nome: 'Advocacia Cabinda',                   lat: -5.5600,  lng: 12.1950, provincia: 'Cabinda'  },
+  { id: 'e10', tipo: 'escritorio', nome: 'Centro Jurídico Lubango',             lat: -14.9200, lng: 13.4900, provincia: 'Huíla'   },
+];
+
+// ---------------------------------------------------------------------------
+// Utilitários
+// ---------------------------------------------------------------------------
+
+// Fórmula de Haversine — retorna distância em metros
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(meters: number): string {
+  if (meters < 1000) return `a ${Math.round(meters)}m`;
+  return `a ${(meters / 1000).toFixed(1).replace('.', ',')}km`;
+}
+
+interface LocationWithDistance extends Location {
+  distanceM: number;
+}
+
+const LUANDA: [number, number] = [13.289436, -8.839987];
+const GEO_TIMEOUT = 6000;
+
+// ---------------------------------------------------------------------------
+// Componente
+// ---------------------------------------------------------------------------
+
+type Tab = 'tribunais' | 'escritorios';
 
 const LawyersMap = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const popupsRef = useRef<Map<string, mapboxgl.Popup>>(new Map());
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [userCoords, setUserCoords] = useState<[number, number] | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('tribunais');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-  const { t } = useLanguage();
+  // Lista com distâncias, ordenada do mais próximo
+  const listWithDistance: LocationWithDistance[] = React.useMemo(() => {
+    const raw = activeTab === 'tribunais' ? TRIBUNAIS : ESCRITORIOS;
+    return raw
+      .map((loc) => ({
+        ...loc,
+        distanceM: userCoords
+          ? haversineMeters(userCoords[1], userCoords[0], loc.lat, loc.lng)
+          : Infinity,
+      }))
+      .sort((a, b) => a.distanceM - b.distanceM);
+  }, [activeTab, userCoords]);
 
-  // Obter localização do usuário com timeout
-  const getUserLocation = (): Promise<[number, number]> => {
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        console.log('Geolocalização não suportada, usando Luanda');
-        resolve([LUANDA_COORDS.lng, LUANDA_COORDS.lat]);
+  // Cor por tipo
+  const COLOR = { tribunal: '#ef4444', escritorio: '#3b82f6' };
+
+  // Criar marcador DOM
+  const makeMarkerEl = useCallback((tipo: 'tribunal' | 'escritorio', isActive: boolean) => {
+    const el = document.createElement('div');
+    el.style.width = isActive ? '36px' : '28px';
+    el.style.height = isActive ? '36px' : '28px';
+    el.style.borderRadius = '50%';
+    el.style.backgroundColor = COLOR[tipo];
+    el.style.border = `3px solid ${isActive ? 'white' : 'rgba(255,255,255,0.8)'}`;
+    el.style.boxShadow = isActive
+      ? '0 0 0 3px ' + COLOR[tipo] + '55, 0 4px 12px rgba(0,0,0,0.35)'
+      : '0 2px 6px rgba(0,0,0,0.25)';
+    el.style.cursor = 'pointer';
+    el.style.transition = 'all 0.2s ease';
+    return el;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Inicializar mapa (roda apenas 1x)
+  useEffect(() => {
+    const init = async () => {
+      if (!mapContainerRef.current) return;
+
+      const token = servicesConfig.mapboxAccessToken;
+      if (!token || token === 'YOUR_MAPBOX_ACCESS_TOKEN_HERE') {
+        setHasError(true);
+        setErrorMessage('Configure VITE_MAPBOX_ACCESS_TOKEN no arquivo .env');
+        setIsLoaded(true);
         return;
       }
 
-      let handled = false;
+      mapboxgl.accessToken = token;
 
-      const onSuccess = (position: GeolocationPosition) => {
-        if (!handled) {
-          handled = true;
-          const coords: [number, number] = [
-            position.coords.longitude,
-            position.coords.latitude,
-          ];
-          console.log('Localização obtida:', coords);
-          setUserLocation(coords);
-          resolve(coords);
-        }
-      };
-
-      const onError = (error: GeolocationPositionError) => {
-        if (!handled) {
-          handled = true;
-          console.log('Erro ao obter localização:', error.message, '- usando Luanda');
-          resolve([LUANDA_COORDS.lng, LUANDA_COORDS.lat]);
-        }
-      };
-
-      navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-        timeout: GEO_TIMEOUT,
-        maximumAge: 60000,
-        enableHighAccuracy: false,
-      });
-
-      // Fallback adicional caso o browser ignore o timeout
-      setTimeout(() => {
-        if (!handled) {
-          handled = true;
-          console.log('Timeout de geolocalização - usando Luanda');
-          resolve([LUANDA_COORDS.lng, LUANDA_COORDS.lat]);
-        }
-      }, GEO_TIMEOUT + 500);
-    });
-  };
-
-  // Limpar marcadores antigos
-  const clearMarkers = () => {
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-  };
-
-  // Buscar lugares usando Mapbox Geocoding API
-  const searchPlaces = async (query: string) => {
-    if (!mapRef.current || !query.trim()) {
-      console.warn('Mapa não inicializado ou query vazia');
-      return;
-    }
-
-    setIsSearching(true);
-    clearMarkers();
-
-    const center = mapRef.current.getCenter();
-
-    try {
-      // Usar Mapbox Geocoding API para buscar lugares
-      const accessToken = servicesConfig.mapboxAccessToken;
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?proximity=${center.lng},${center.lat}&limit=20&country=AO&access_token=${accessToken}`;
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error('Falha ao buscar lugares');
-      }
-
-      const data = await response.json();
-      const results = data.features || [];
-
-      console.log(`Encontrados ${results.length} lugares para "${query}"`);
-
-      // Criar marcadores para os resultados
-      results.forEach((place: any) => {
-        const [lng, lat] = place.center;
-
-        // Criar elemento customizado para marcador
-        const el = document.createElement('div');
-        el.className = 'custom-marker';
-        el.style.width = '30px';
-        el.style.height = '30px';
-        el.style.borderRadius = '50%';
-        el.style.backgroundColor = '#3b82f6'; // Azul para todos os marcadores
-        el.style.border = '3px solid white';
-        el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
-        el.style.cursor = 'pointer';
-
-        const marker = new mapboxgl.Marker(el)
-          .setLngLat([lng, lat])
-          .addTo(mapRef.current!);
-
-        // Click listener
-        el.addEventListener('click', () => {
-          const placeData: Place = {
-            id: place.id || String(Date.now()),
-            name: place.text || place.place_name || 'Sem nome',
-            address: place.place_name || 'Endereço não disponível',
-            position: [lng, lat],
+      // Pedir geolocalização
+      const getLocation = (): Promise<[number, number]> =>
+        new Promise((resolve) => {
+          let done = false;
+          const finish = (coords: [number, number]) => {
+            if (!done) { done = true; resolve(coords); }
           };
-
-          setSelectedPlace(placeData);
-          mapRef.current?.flyTo({
-            center: [lng, lat],
-            zoom: 15,
-            duration: 1000,
-          });
+          setTimeout(() => finish(LUANDA), GEO_TIMEOUT + 500);
+          if (!navigator.geolocation) { finish(LUANDA); return; }
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const c: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+              setUserCoords(c);
+              finish(c);
+            },
+            () => finish(LUANDA),
+            { timeout: GEO_TIMEOUT, maximumAge: 60000, enableHighAccuracy: false },
+          );
         });
 
-        markersRef.current.push(marker);
+      const center = await getLocation();
+
+      const map = new mapboxgl.Map({
+        container: mapContainerRef.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center,
+        zoom: 12,
       });
 
-      // Ajustar bounds para mostrar todos os marcadores
-      if (markersRef.current.length > 0) {
-        const bounds = new mapboxgl.LngLatBounds();
-        markersRef.current.forEach((marker) => {
-          bounds.extend(marker.getLngLat());
-        });
-        mapRef.current.fitBounds(bounds, { padding: 50 });
-      }
-    } catch (error: any) {
-      console.error('Erro ao buscar lugares:', error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
+      mapRef.current = map;
+      map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-  // Inicializar mapa
-  useEffect(() => {
-    const initMap = async () => {
-      if (!mapContainerRef.current) return;
-
-      try {
-        const accessToken = servicesConfig.mapboxAccessToken;
-
-        if (!accessToken || accessToken === 'YOUR_MAPBOX_ACCESS_TOKEN_HERE') {
-          throw new Error(
-            'Mapbox Access Token não configurado. Configure VITE_MAPBOX_ACCESS_TOKEN no arquivo .env',
-          );
-        }
-
-        // Configurar token do Mapbox
-        mapboxgl.accessToken = accessToken;
-
-        // Obter localização do usuário
-        const location = await getUserLocation();
-
-        // Inicializar mapa
-        const map = new mapboxgl.Map({
-          container: mapContainerRef.current,
-          style: 'mapbox://styles/mapbox/streets-v12',
-          center: location,
-          zoom: 12,
-        });
-
-        mapRef.current = map;
-
-        // Aguardar mapa carregar
-        map.on('load', () => {
-          setIsLoaded(true);
-
-          // Adicionar marcador da localização do usuário
-          if (userLocation) {
-            const el = document.createElement('div');
-            el.className = 'user-marker';
-            el.style.width = '20px';
-            el.style.height = '20px';
-            el.style.borderRadius = '50%';
-            el.style.backgroundColor = '#22c55e';
-            el.style.border = '3px solid white';
-            el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
-
-            const userMarker = new mapboxgl.Marker(el)
-              .setLngLat(userLocation)
-              .setPopup(
-                new mapboxgl.Popup({ offset: 25 }).setHTML(
-                  '<p style="margin: 0; padding: 4px 8px; font-size: 12px;">Sua localização</p>',
-                ),
-              )
-              .addTo(map);
-
-            userMarkerRef.current = userMarker;
-          }
-        });
-
-        map.on('error', (e) => {
-          console.error('Erro no mapa:', e);
-          setHasError(true);
-          setErrorMessage('Erro ao carregar o mapa Mapbox');
-        });
-
-        // Adicionar controles de navegação
-        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-      } catch (error: any) {
-        console.error('Erro ao inicializar mapa:', error);
-        setHasError(true);
-        setErrorMessage(
-          error.message || 'Erro desconhecido ao carregar o mapa',
-        );
+      map.on('load', () => {
         setIsLoaded(true);
-      }
+
+        // Marcador do usuário
+        if (userCoords) {
+          const el = document.createElement('div');
+          el.style.width = '18px';
+          el.style.height = '18px';
+          el.style.borderRadius = '50%';
+          el.style.backgroundColor = '#22c55e';
+          el.style.border = '3px solid white';
+          el.style.boxShadow = '0 0 0 4px rgba(34,197,94,0.3)';
+          userMarkerRef.current = new mapboxgl.Marker(el)
+            .setLngLat(userCoords)
+            .setPopup(new mapboxgl.Popup({ offset: 20 }).setHTML('<p style="margin:0;font-size:12px;font-weight:600">Você está aqui</p>'))
+            .addTo(map);
+        }
+      });
+
+      map.on('error', () => {
+        setHasError(true);
+        setErrorMessage('Erro ao carregar o mapa.');
+      });
+
+      return () => {
+        markersRef.current.forEach((m) => m.remove());
+        popupsRef.current.forEach((p) => p.remove());
+        userMarkerRef.current?.remove();
+        map.remove();
+      };
     };
 
-    initMap();
-
-    // Cleanup
-    return () => {
-      clearMarkers();
-      if (userMarkerRef.current) {
-        userMarkerRef.current.remove();
-      }
-      if (mapRef.current) {
-        mapRef.current.remove();
-      }
-    };
+    init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Renderizar estrelas de avaliação
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        size={14}
-        className={`${i < Math.floor(rating) ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground'}`}
-      />
-    ));
-  };
+  // Sincronizar marcadores sempre que a aba ou os dados mudam
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isLoaded) return;
 
-  // Mostrar erro
+    // Remover marcadores antigos
+    markersRef.current.forEach((m) => m.remove());
+    popupsRef.current.forEach((p) => p.remove());
+    markersRef.current.clear();
+    popupsRef.current.clear();
+
+    const allLocations = activeTab === 'tribunais' ? TRIBUNAIS : ESCRITORIOS;
+
+    allLocations.forEach((loc) => {
+      const isActive = loc.id === activeId;
+      const el = makeMarkerEl(loc.tipo, isActive);
+
+      const popup = new mapboxgl.Popup({ offset: 28, closeButton: false })
+        .setHTML(`
+          <div style="font-family:sans-serif;padding:4px 2px;min-width:180px">
+            <p style="margin:0 0 4px;font-weight:700;font-size:13px;line-height:1.3">${loc.nome}</p>
+            <p style="margin:0 0 8px;font-size:11px;color:#6b7280">${loc.provincia}</p>
+            <a
+              href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="display:inline-flex;align-items:center;gap:4px;background:#3b82f6;color:white;font-size:11px;font-weight:600;text-decoration:none;padding:5px 10px;border-radius:6px"
+            >
+              Como Chegar
+            </a>
+          </div>
+        `);
+
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([loc.lng, loc.lat])
+        .setPopup(popup)
+        .addTo(map);
+
+      el.addEventListener('click', () => {
+        setActiveId(loc.id);
+      });
+
+      markersRef.current.set(loc.id, marker);
+      popupsRef.current.set(loc.id, popup);
+    });
+  }, [activeTab, isLoaded, activeId, makeMarkerEl]);
+
+  // Quando activeId muda: flyTo + abrir popup
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !activeId) return;
+
+    const allLocations = [...TRIBUNAIS, ...ESCRITORIOS];
+    const loc = allLocations.find((l) => l.id === activeId);
+    if (!loc) return;
+
+    map.flyTo({ center: [loc.lng, loc.lat], zoom: 15, duration: 1200 });
+
+    // Abrir popup após o voo terminar
+    const openPopup = () => {
+      const marker = markersRef.current.get(activeId);
+      marker?.togglePopup();
+    };
+    map.once('moveend', openPopup);
+
+    return () => { map.off('moveend', openPopup); };
+  }, [activeId]);
+
+  // ── Error state ──────────────────────────────────────────────────────────
   if (hasError) {
     return (
-      <div className="h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="text-destructive" size={20} />
-              Erro no Mapa
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Alert variant="destructive">
-              <AlertDescription>{errorMessage}</AlertDescription>
-            </Alert>
-            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <p>Possíveis soluções:</p>
-              <ul className="list-disc pl-6 space-y-1">
-                <li>Verificar se o Mapbox Access Token está configurado no .env</li>
-                <li>
-                  Criar um token em{' '}
-                  <a
-                    href="https://account.mapbox.com/access-tokens/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary underline"
-                  >
-                    account.mapbox.com
-                  </a>
-                </li>
-                <li>Verificar conexão com internet</li>
-              </ul>
-            </div>
-            <Button className="mt-4" onClick={() => window.location.reload()}>
-              Tentar Novamente
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="h-full flex items-center justify-center p-4 bg-background">
+        <div className="max-w-sm w-full space-y-4">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+          <Button className="w-full" onClick={() => window.location.reload()}>
+            Tentar Novamente
+          </Button>
+        </div>
       </div>
     );
   }
 
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="h-screen bg-background flex flex-col">
-      <div className="flex-1 relative">
-        <div ref={mapContainerRef} className="w-full h-full" />
+    <div className="relative h-full w-full overflow-hidden">
+      {/* Mapa */}
+      <div ref={mapContainerRef} className="absolute inset-0" />
 
-        {/* Loading */}
-        {!isLoaded && (
-          <div className="absolute inset-0 bg-background flex items-center justify-center">
-            <div className="text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">Carregando mapa...</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Obtendo sua localização...
-              </p>
-            </div>
-          </div>
-        )}
+      {/* Loading overlay */}
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-20">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground font-medium">Carregando mapa...</p>
+          <p className="text-xs text-muted-foreground">Obtendo sua localização...</p>
+        </div>
+      )}
 
-        {/* Campo de Busca */}
-        <Card className="absolute top-4 left-4 z-10 w-80">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Buscar no Mapa</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (searchQuery.trim()) {
-                  searchPlaces(searchQuery);
-                }
-              }}
-              className="flex gap-2"
-            >
-              <Input
-                type="text"
-                placeholder="Ex: tribunal, escritório advocacia..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                disabled={isSearching || !isLoaded}
-                className="flex-1"
-              />
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isSearching || !isLoaded || !searchQuery.trim()}
+      {/* Sidebar */}
+      <div
+        className={`
+          absolute top-0 left-0 h-full z-10 flex flex-col
+          bg-background/95 backdrop-blur-md border-r border-border
+          transition-all duration-300 ease-in-out
+          ${sidebarOpen ? 'w-80 sm:w-72' : 'w-0 overflow-hidden'}
+        `}
+      >
+        {/* Header da sidebar */}
+        <div className="p-4 border-b border-border shrink-0">
+          <h2 className="font-bold text-base text-foreground flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-primary" />
+            Locais Jurídicos
+          </h2>
+          {userCoords ? (
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <Navigation className="w-3 h-3 text-green-500" />
+              Ordenado por distância
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1">Angola</p>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex shrink-0 border-b border-border">
+          <button
+            onClick={() => { setActiveTab('tribunais'); setActiveId(null); }}
+            className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors
+              ${activeTab === 'tribunais'
+                ? 'border-b-2 border-red-500 text-red-600'
+                : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Scale className="w-3.5 h-3.5" />
+            Tribunais
+            <Badge variant="secondary" className="text-[10px] h-4 px-1">{TRIBUNAIS.length}</Badge>
+          </button>
+          <button
+            onClick={() => { setActiveTab('escritorios'); setActiveId(null); }}
+            className={`flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors
+              ${activeTab === 'escritorios'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            Escritórios
+            <Badge variant="secondary" className="text-[10px] h-4 px-1">{ESCRITORIOS.length}</Badge>
+          </button>
+        </div>
+
+        {/* Lista */}
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1">
+            {listWithDistance.map((loc, i) => (
+              <button
+                key={loc.id}
+                onClick={() => setActiveId(loc.id)}
+                className={`w-full text-left rounded-lg px-3 py-2.5 transition-all group
+                  ${activeId === loc.id
+                    ? 'bg-primary/10 border border-primary/30'
+                    : 'hover:bg-muted border border-transparent'}
+                `}
               >
-                {isSearching ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Search className="w-4 h-4" />
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Info do Lugar Selecionado */}
-        {selectedPlace && (
-          <Card className="absolute bottom-4 left-4 right-4 z-10 max-w-md mx-auto">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{selectedPlace.name}</CardTitle>
-                  <Badge variant="default" className="mt-1">
-                    Lugar
-                  </Badge>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedPlace(null)}
-                  className="h-8 w-8 p-0"
-                >
-                  ×
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-3">
-              <div className="flex items-start gap-2">
-                <MapPin
-                  size={16}
-                  className="text-muted-foreground mt-0.5 flex-shrink-0"
-                />
-                <span className="text-sm">{selectedPlace.address}</span>
-              </div>
-
-              {selectedPlace.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone size={16} className="text-muted-foreground" />
-                  <a
-                    href={`tel:${selectedPlace.phone}`}
-                    className="text-sm text-primary hover:underline"
+                <div className="flex items-start gap-2.5">
+                  {/* Rank + cor */}
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5"
+                    style={{ backgroundColor: activeTab === 'tribunais' ? '#ef4444' : '#3b82f6' }}
                   >
-                    {selectedPlace.phone}
-                  </a>
-                </div>
-              )}
-
-              {selectedPlace.website && (
-                <div className="flex items-center gap-2">
-                  <Globe size={16} className="text-muted-foreground" />
-                  <a
-                    href={selectedPlace.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {selectedPlace.website}
-                  </a>
-                </div>
-              )}
-
-              {selectedPlace.rating && (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    {renderStars(selectedPlace.rating)}
+                    {i + 1}
                   </div>
-                  <span className="text-sm font-medium">
-                    {selectedPlace.rating}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-foreground leading-snug truncate">
+                      {loc.nome}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{loc.provincia}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {loc.distanceM !== Infinity && (
+                      <p className="text-[10px] font-medium text-primary whitespace-nowrap">
+                        {formatDistance(loc.distanceM)}
+                      </p>
+                    )}
+                    <ChevronRight className="w-3 h-3 text-muted-foreground mt-0.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
                 </div>
-              )}
-
-              <Button className="w-full mt-2" asChild>
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${selectedPlace.position[1]},${selectedPlace.position[0]}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Obter Direções
-                </a>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+              </button>
+            ))}
+          </div>
+          <Separator className="my-2" />
+          <p className="text-center text-[10px] text-muted-foreground pb-4">
+            {listWithDistance.length} locais encontrados
+          </p>
+        </ScrollArea>
       </div>
+
+      {/* Toggle sidebar button */}
+      <button
+        onClick={() => setSidebarOpen((o) => !o)}
+        className={`
+          absolute top-1/2 -translate-y-1/2 z-20
+          w-6 h-12 bg-background/90 border border-border rounded-r-lg
+          flex items-center justify-center shadow-md hover:bg-muted transition-all
+          ${sidebarOpen ? 'left-80 sm:left-72' : 'left-0'}
+        `}
+        title={sidebarOpen ? 'Fechar lista' : 'Abrir lista'}
+      >
+        <ChevronRight
+          className={`w-3 h-3 text-muted-foreground transition-transform duration-300 ${sidebarOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
     </div>
   );
 };
