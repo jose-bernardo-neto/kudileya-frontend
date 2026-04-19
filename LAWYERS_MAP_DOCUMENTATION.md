@@ -2,141 +2,232 @@
 
 ## Visão Geral
 
-O componente `LawyersMap` exibe um mapa interativo mostrando tribunais e escritórios de advocacia em Angola. Utiliza a Google Maps JavaScript API e a Places API para fornecer uma experiência de busca dinâmica e localização em tempo real.
+O componente `LawyersMap` exibe um mapa interativo mostrando tribunais e escritórios de advocacia em Angola. Utiliza o **Mapbox GL JS** e a **Geocoding API** para fornecer uma experiência de busca dinâmica e localização em tempo real.
+
+## Migração do Google Maps para Mapbox
+
+**Mudanças Principais:**
+- ✅ **API de Mapa**: Google Maps JavaScript API → Mapbox GL JS
+- ✅ **API de Busca**: Google Places API → Mapbox Geocoding API  
+- ✅ **Coordenadas**: `{lat, lng}` → `[lng, lat]` (ordem invertida!)
+- ✅ **Marcadores**: `google.maps.Marker` → `mapboxgl.Marker` com elementos DOM
+- ✅ **Configuração**: `VITE_GOOGLE_MAPS_API_KEY` → `VITE_MAPBOX_ACCESS_TOKEN`
 
 ## Tecnologias Utilizadas
 
-- **Google Maps JavaScript API**: Para renderização do mapa
-- **Google Places API**: Para buscar tribunais e escritórios dinamicamente
-- **Geolocation API**: Para obter a localização do usuário
-- **React + TypeScript**: Framework e tipagem
-- **shadcn/ui**: Componentes de UI (Card, Button, Badge, etc.)
+- **Mapbox GL JS v3.22.0**: Renderização de mapa interativo
+- **Mapbox Geocoding API**: Busca de lugares
+- **Geolocation API**: Localização do usuário
+- **React + TypeScript**: Framework  
+- **shadcn/ui**: Componentes (Card, Button, Badge, Alert)
+- **Tailwind CSS**: Estilização
+
+## Configuração
+
+### 1. Variáveis de Ambiente (.env)
+
+```bash
+# Mapbox Access Token
+VITE_MAPBOX_ACCESS_TOKEN=pk.eyJ1IjoieW91cnVzZXJuYW1lIiwiYSI6InlvdXJ0b2tlbiJ9.abc123
+
+# Feature flag para habilitar/desabilitar mapa
+VITE_ENABLE_MAP=true
+```
+
+### 2. Obter Access Token
+
+1. Acesse https://account.mapbox.com/access-tokens/
+2. Crie uma conta ou faça login
+3. Clique em "Create a token"
+4. Copie o token e adicione no `.env`
+
+**Nota:** O free tier do Mapbox oferece:
+- 100,000 requisições de Geocoding por mês
+- 50,000 carregamentos de mapa por mês
+
+### 3. Instalação
+
+```bash
+pnpm add mapbox-gl
+# @types/mapbox-gl não é necessário (mapbox-gl tem tipos built-in)
+```
 
 ## Funcionalidades Principais
 
 ### 1. Geolocalização com Fallback
 
 ```typescript
-const getUserLocation = (): Promise<google.maps.LatLngLiteral> => {
-	// Tenta obter localização do usuário
-	// Timeout: 5 segundos
-	// Fallback: Luanda (-8.839987, 13.289436)
+const getUserLocation = (): Promise<[number, number]> => {
+  return new Promise((resolve) => {
+    // Timeout: 5 segundos
+    // Fallback: Luanda [13.289436, -8.839987]
+  });
 };
 ```
 
 **Comportamento:**
+- Solicita permissão de geolocalização
+- Timeout de 5 segundos  
+- Fallback para Luanda se falhar
+- Console.log do status
+- Formato: `[longitude, latitude]` (Mapbox)
 
-- Solicita permissão de geolocalização ao usuário
-- Timeout de 5 segundos
-- Se falhar ou usuário negar: usa coordenadas de Luanda
-- Exibe mensagem no console sobre o status
-
-**Coordenadas de Fallback:**
-
+**Coordenadas:**
 ```typescript
-const LUANDA_COORDS = { lat: -8.839987, lng: 13.289436 };
+const LUANDA_COORDS = { lng: 13.289436, lat: -8.839987 };
 const GEO_TIMEOUT = 5000; // 5 segundos
 ```
 
-### 2. Busca Dinâmica com Places API
+### 2. Busca com Mapbox Geocoding API
 
 ```typescript
 const searchPlaces = async (searchType: SearchType) => {
-	// searchType: 'tribunais' | 'escritorios'
-	// Termos de busca:
-	// - Tribunais: 'tribunal'
-	// - Escritórios: 'escritório advocacia'
-	// Raio de busca: 20km do centro do mapa
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/
+    ${encodeURIComponent(searchQuery)}.json?
+    proximity=${center.lng},${center.lat}&
+    limit=20&
+    country=AO&
+    access_token=${accessToken}`;
 };
 ```
 
+**Parâmetros:**
+- `searchQuery`: "tribunal" ou "escritório advocacia"
+- `proximity`: coordenadas do centro do mapa (busca próxima)
+- `limit`: máximo 20 resultados
+- `country=AO`: restringe a Angola
+
 **Tipos de Busca:**
 
-| Tipo        | Keyword                | Cor do Marcador | Ícone    |
-| ----------- | ---------------------- | --------------- | -------- |
-| Tribunais   | `tribunal`             | Vermelho        | Red Dot  |
-| Escritórios | `escritório advocacia` | Azul            | Blue Dot |
+| Tipo        | Keyword                | Marcador  | Cor     |
+|-------------|------------------------|-----------|---------|
+| Tribunais   | `tribunal`             | Círculo   | Vermelho (#ef4444) |
+| Escritórios | `escritório advocacia` | Círculo   | Azul (#3b82f6) |
 
-**Funcionalidades:**
+### 3. Marcadores Customizados
 
-- Limpa marcadores anteriores
-- Busca num raio de 20km do centro atual do mapa
-- Cria marcadores com animação DROP
-- Ajusta bounds para mostrar todos os resultados
-- Loading state durante a busca
+```typescript
+const el = document.createElement('div');
+el.style.width = '30px';
+el.style.height = '30px';
+el.style.borderRadius = '50%';
+el.style.backgroundColor = searchType === 'tribunais' ? '#ef4444' : '#3b82f6';
+el.style.border = '3px solid white';
+el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
 
-### 3. Interface do Usuário
+const marker = new mapboxgl.Marker(el)
+  .setLngLat([lng, lat])
+  .addTo(map);
+```
 
-#### Botões de Busca
+**Estilos:**
+- Tribunais: círculo vermelho 30x30px
+- Escritórios: círculo azul 30x30px
+- Usuário: círculo verde 20x20px
+- Borda branca 3px
+- Sombra para destaque
 
-Localização: Canto superior esquerdo do mapa
+### 4. Interface de Usuário
+
+#### Botões de Busca (top-left)
 
 ```tsx
-<Card className='absolute top-4 left-4 z-10'>
-	<Button onClick={() => searchPlaces('tribunais')}>🔴 Tribunais</Button>
-	<Button onClick={() => searchPlaces('escritorios')}>🔵 Escritórios</Button>
+<Card className="absolute top-4 left-4 z-10">
+  <Button 
+    variant={activeSearch === 'tribunais' ? 'default' : 'outline'}
+    onClick={() => searchPlaces('tribunais')}
+    className={activeSearch === 'tribunais' ? 'bg-red-600 hover:bg-red-700' : ''}
+  >
+    {isSearching ? <Loader2 /> : <div className="w-4 h-4 bg-red-500 rounded-full" />}
+    Tribunais
+  </Button>
+  
+  <Button 
+    variant={activeSearch === 'escritorios' ? 'default' : 'outline'}
+    onClick={() => searchPlaces('escritorios')}
+    className={activeSearch === 'escritorios' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+  >
+    {isSearching ? <Loader2 /> : <div className="w-4 h-4 bg-blue-500 rounded-full" />}
+    Escritórios
+  </Button>
 </Card>
 ```
 
-**Estados dos Botões:**
+#### Card de Informação do Lugar (bottom-center)
 
-- **Ativo**: Background colorido (vermelho/azul) + texto bold
-- **Inativo**: Outline (borda)
-- **Loading**: Ícone de loading spinner
-- **Disabled**: Durante busca ou antes do mapa carregar
-
-#### Card de Informação do Lugar
-
-Aparece quando usuário clica em um marcador:
+Aparece ao clicar em marcador:
 
 ```tsx
-{
-	selectedPlace && (
-		<Card className='absolute bottom-4 left-4 right-4 z-10'>
-			- Nome do lugar - Tipo (Tribunal/Escritório) - Endereço - Telefone
-			(clicável: tel:) - Website (clicável: nova aba) - Avaliação (estrelas) -
-			Botão "Obter Direções" (abre Google Maps)
-		</Card>
-	);
-}
+{selectedPlace && (
+  <Card className="absolute bottom-4 left-4 right-4 z-10 max-w-md mx-auto">
+    <CardTitle>{selectedPlace.name}</CardTitle>
+    <Badge>{activeSearch === 'tribunais' ? 'Tribunal' : 'Escritório'}</Badge>
+    
+    {/* Endereço */}
+    <MapPin /> {selectedPlace.address}
+    
+    {/* Telefone (opcional) */}
+    {selectedPlace.phone && (
+      <a href={`tel:${selectedPlace.phone}`}>
+        <Phone /> {selectedPlace.phone}
+      </a>
+    )}
+    
+    {/* Website (opcional) */}
+    {selectedPlace.website && (
+      <a href={selectedPlace.website} target="_blank">
+        <Globe /> {selectedPlace.website}
+      </a>
+    )}
+    
+    {/* Avaliação (opcional) */}
+    {selectedPlace.rating && (
+      <div>{renderStars(selectedPlace.rating)} {selectedPlace.rating}</div>
+    )}
+    
+    {/* Botão de Direções */}
+    <Button asChild>
+      <a href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}>
+        Obter Direções
+      </a>
+    </Button>
+  </Card>
+)}
 ```
 
-**Campos Exibidos:**
+#### Estados Visuais
 
-- ✅ **Nome**: sempre exibido
-- ✅ **Endereço**: sempre exibido
-- ❔ **Telefone**: apenas se disponível
-- ❔ **Website**: apenas se disponível
-- ❔ **Avaliação**: apenas se disponível (1-5 estrelas)
-
-#### Estados de Loading
-
+**Loading:**
 ```tsx
-{
-	!isLoaded && (
-		<div className='loading'>
-			<Loader2 />
-			Carregando mapa... Obtendo sua localização...
-		</div>
-	);
-}
+{!isLoaded && (
+  <div className="absolute inset-0 flex items-center justify-center">
+    <Loader2 className="animate-spin" />
+    <p>Carregando mapa...</p>
+    <p>Obtendo sua localização...</p>
+  </div>
+)}
 ```
 
-#### Tela de Erro
-
-Exibida quando há falha ao carregar a API:
-
+**Erro:**
 ```tsx
 if (hasError) {
-	return (
-		<Card>
-			<AlertCircle /> Erro no Mapa
-			{errorMessage}
-			Possíveis soluções: - Verificar se a API Key está configurada - Habilitar
-			Maps JavaScript API e Places API - Verificar conexão com internet
-			<Button>Tentar Novamente</Button>
-		</Card>
-	);
+  return (
+    <Card>
+      <AlertCircle className="text-destructive" />
+      <h3>Erro no Mapa</h3>
+      <AlertDescription>{errorMessage}</AlertDescription>
+      
+      <ul>
+        <li>Verificar se VITE_MAPBOX_ACCESS_TOKEN está no .env</li>
+        <li>Criar token em account.mapbox.com/access-tokens/</li>
+        <li>Verificar conexão com internet</li>
+      </ul>
+      
+      <Button onClick={() => window.location.reload()}>
+        Tentar Novamente
+      </Button>
+    </Card>
+  );
 }
 ```
 
@@ -146,15 +237,17 @@ if (hasError) {
 
 ```typescript
 interface Place {
-	id: string; // place_id do Google ou timestamp
-	name: string; // Nome do lugar
-	address: string; // Endereço (vicinity)
-	phone?: string; // formatted_phone_number
-	website?: string; // Website URL
-	rating?: number; // Avaliação 1-5
-	position: LatLng | LatLngLiteral; // Coordenadas
+  id: string;              // place.id ou timestamp
+  name: string;            // place.text ou place.place_name
+  address: string;         // place.place_name
+  phone?: string;          // não disponível no Geocoding (apenas no nome)
+  website?: string;        // não disponível no Geocoding
+  rating?: number;         // não disponível no Geocoding
+  position: [number, number]; // [lng, lat] - FORMATO MAPBOX!
 }
 ```
+
+**Nota:** Mapbox Geocoding API retorna dados básicos. Para telefone, website e rating, seria necessário usar o Mapbox Search API ou integrar com outra API.
 
 ### Type SearchType
 
@@ -167,404 +260,250 @@ type SearchType = 'tribunais' | 'escritorios';
 ### 1. Inicialização
 
 ```
-┌─────────────────────────────────────┐
-│  useEffect (mount)                  │
-├─────────────────────────────────────┤
-│  1. loadGoogleMaps()                │
-│     - Verifica se API já carregada  │
-│     - Cria script tag se necessário │
-│     - Aguarda carregamento          │
-│                                     │
-│  2. initMap()                       │
-│     - getUserLocation()             │
-│       * Tenta geolocalização        │
-│       * Timeout: 5s                 │
-│       * Fallback: Luanda            │
-│     - Cria instância do mapa        │
-│     - Adiciona marcador do usuário  │
-│     - Inicializa Places Service     │
-│     - searchPlaces('tribunais')     │
-└─────────────────────────────────────┘
+useEffect (mount)
+├── initMap()
+│   ├── Verifica servicesConfig.mapboxAccessToken
+│   ├── Valida se não é 'YOUR_MAPBOX_ACCESS_TOKEN_HERE'
+│   ├── Define mapboxgl.accessToken
+│   ├── getUserLocation() → Promise<[lng, lat]>
+│   │   ├── navigator.geolocation.getCurrentPosition()
+│   │   │   ├── Success → resolve([lng, lat])
+│   │   │   ├── Error → resolve(LUANDA_COORDS)
+│   │   │   └── Timeout 5s → resolve(LUANDA_COORDS)
+│   │   └── Duplo fallback (setTimeout 5.5s)
+│   ├── new mapboxgl.Map({ container, style, center, zoom: 12 })
+│   ├── map.on('load')
+│   │   ├── setIsLoaded(true)
+│   │   ├── Criar marcador do usuário (verde 20px)
+│   │   │   └── new mapboxgl.Marker(el).setLngLat(userLocation).setPopup(...)
+│   │   └── setTimeout(() => searchPlaces('tribunais'), 500)
+│   ├── map.on('error') → setHasError(true)
+│   └── map.addControl(new mapboxgl.NavigationControl())
+└── Cleanup (unmount)
+    ├── clearMarkers() → markersRef.current.forEach(m => m.remove())
+    ├── userMarkerRef.current?.remove()
+    └── mapRef.current?.remove()
 ```
 
 ### 2. Busca de Lugares
 
 ```
-┌─────────────────────────────────────┐
-│  searchPlaces(searchType)           │
-├─────────────────────────────────────┤
-│  1. setIsSearching(true)            │
-│  2. clearMarkers()                  │
-│  3. placesService.nearbySearch()    │
-│     - location: center do mapa      │
-│     - radius: 20000 (20km)          │
-│     - keyword: tribunal/escritório  │
-│                                     │
-│  4. Callback com resultados:        │
-│     - Cria marcadores               │
-│     - Adiciona click listeners      │
-│     - Ajusta bounds                 │
-│  5. setIsSearching(false)           │
-└─────────────────────────────────────┘
+searchPlaces(searchType)
+├── if (!mapRef.current) return
+├── setIsSearching(true)
+├── setActiveSearch(searchType)
+├── clearMarkers()
+├── const center = mapRef.current.getCenter()
+├── const searchQuery = searchType === 'tribunais' ? 'tribunal' : 'escritório advocacia'
+├── fetch(Mapbox Geocoding API)
+│   ├── URL: https://api.mapbox.com/geocoding/v5/mapbox.places/{query}.json
+│   ├── Params:
+│   │   ├── proximity: {center.lng},{center.lat}
+│   │   ├── limit: 20
+│   │   ├── country: AO
+│   │   └── access_token: {token}
+│   └── response.json() → { features: [...] }
+├── results.forEach(place)
+│   ├── const [lng, lat] = place.center
+│   ├── Criar elemento DOM customizado
+│   │   ├── div.custom-marker
+│   │   ├── style: 30x30px, círculo, cor (vermelho/azul)
+│   │   └── click listener → setSelectedPlace()
+│   ├── new mapboxgl.Marker(el).setLngLat([lng, lat]).addTo(map)
+│   └── markersRef.current.push(marker)
+├── if (markersRef.current.length > 0)
+│   ├── const bounds = new mapboxgl.LngLatBounds()
+│   ├── markersRef.current.forEach(m => bounds.extend(m.getLngLat()))
+│   └── mapRef.current.fitBounds(bounds, { padding: 50 })
+└── setIsSearching(false)
 ```
 
 ### 3. Interação com Marcador
 
 ```
-┌─────────────────────────────────────┐
-│  marker.addListener('click')        │
-├─────────────────────────────────────┤
-│  1. Cria objeto Place               │
-│     - id, name, address             │
-│     - phone, website, rating        │
-│     - position                      │
-│                                     │
-│  2. setSelectedPlace(placeData)     │
-│  3. map.panTo(position)             │
-│  4. map.setZoom(15)                 │
-│                                     │
-│  → Card de info aparece na tela     │
-└─────────────────────────────────────┘
+marker.el.addEventListener('click')
+├── Criar Place object
+│   ├── id: place.id || String(Date.now())
+│   ├── name: place.text || place.place_name || 'Sem nome'
+│   ├── address: place.place_name || 'Endereço não disponível'
+│   └── position: [lng, lat]
+├── setSelectedPlace(placeData)
+└── mapRef.current.flyTo({ center: [lng, lat], zoom: 15, duration: 1000 })
 ```
 
-## Configuração Necessária
+## Referências de APIs
 
-### 1. Variável de Ambiente
+### Mapbox GL JS
 
-Adicionar no arquivo `.env`:
+- **Docs**: https://docs.mapbox.com/mapbox-gl-js/
+- **Exemplos**: https://docs.mapbox.com/mapbox-gl-js/example/
+- **API Reference**: https://docs.mapbox.com/mapbox-gl-js/api/
 
-```bash
-VITE_GOOGLE_MAPS_API_KEY=YOUR_ACTUAL_API_KEY_HERE
-```
+### Mapbox Geocoding API
 
-### 2. Google Cloud Console
+- **Docs**: https://docs.mapbox.com/api/search/geocoding/
+- **Playground**: https://docs.mapbox.com/playground/geocoding/
 
-Habilitar as seguintes APIs:
-
-1. **Maps JavaScript API**
-   - Para renderização do mapa
-2. **Places API**
-   - Para busca de lugares (nearbySearch)
-
-3. **Geolocation API** (opcional)
-   - Para melhorar precisão da localização
-
-**Configurar restrições de API Key:**
-
-- Tipo: Aplicações web
-- Referenciadores HTTP: adicionar domínio do site
-- APIs restritas: Maps JavaScript API, Places API
-
-### 3. URL do Script
+### Principais Classes
 
 ```typescript
-const script = document.createElement('script');
-const apiKey = servicesConfig.googleMapsApiKey;
-script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
+// Mapa
+new mapboxgl.Map(options)
+map.on(event, callback)
+map.getCenter() // → LngLat
+map.flyTo(options)
+map.fitBounds(bounds, options)
+map.addControl(control)
+map.remove()
+
+// Marcadores
+new mapboxgl.Marker(element?)
+marker.setLngLat([lng, lat])
+marker.setPopup(popup)
+marker.addTo(map)
+marker.remove()
+marker.getLngLat() // → LngLat
+
+// Popups
+new mapboxgl.Popup(options)
+popup.setHTML(html)
+
+// Bounds
+new mapboxgl.LngLatBounds()
+bounds.extend(lngLat)
+
+// Controles
+new mapboxgl.NavigationControl()
 ```
 
-**Parâmetros importantes:**
+## Troubleshooting
 
-- `key`: API Key do Google Maps
-- `libraries=places`: Carrega biblioteca Places
-- `loading=async`: Carregamento assíncrono
+### Erro: "Mapbox Access Token não configurado"
 
-## Tratamento de Erros
+**Causa:** `VITE_MAPBOX_ACCESS_TOKEN` não definido ou ainda tem valor padrão
 
-### 1. Geolocalização
+**Solução:**
+1. Criar token em https://account.mapbox.com/access-tokens/
+2. Adicionar no `.env`: `VITE_MAPBOX_ACCESS_TOKEN=pk.ey...`
+3. Reiniciar dev server (`pnpm run dev`)
 
+### Erro: "Invalid token" ou 401
+
+**Causa:** Token inválido ou expirado
+
+**Solução:**
+1. Verificar se token está correto (começa com `pk.`)
+2. Verificar se token não foi revogado
+3. Criar novo token se necessário
+
+### Mapa não carrega ou fica cinza
+
+**Causa:** CSS do Mapbox não importado
+
+**Solução:**
 ```typescript
-// Cenários tratados:
-- navigator.geolocation não disponível
-- Usuário negou permissão
-- Timeout (5 segundos)
-- Erro desconhecido
-
-// Solução: Fallback para Luanda
-resolve(LUANDA_COORDS);
+import 'mapbox-gl/dist/mapbox-gl.css'; // OBRIGATÓRIO!
 ```
 
-### 2. Carregamento da API
+### Busca não retorna resultados
 
+**Causas possíveis:**
+- Query muito específica (ex: "Tribunal de Luanda Viana")
+- Região sem dados cadastrados
+- Limite de requisições atingido (free tier: 100k/mês)
+
+**Soluções:**
+- Usar queries mais genéricas ("tribunal", "escritório")
+- Expandir área de busca (remover `proximity` ou aumentar `limit`)
+- Verificar cota no dashboard Mapbox
+
+### Coordenadas invertidas (mapa no oceano)
+
+**Causa:** Ordem errada de coordenadas
+
+**CORRETO (Mapbox):**
 ```typescript
-// Cenários tratados:
-- Script não carrega (network error)
-- API Key inválida
-- API não habilitada
-
-// Solução: Exibe tela de erro com sugestões
-setHasError(true);
-setErrorMessage(error.message);
+const position: [number, number] = [longitude, latitude]; // [lng, lat]
+marker.setLngLat([13.289436, -8.839987]); // [lng, lat]
 ```
 
-### 3. Places API
-
+**ERRADO:**
 ```typescript
-// Cenários tratados:
-- ZERO_RESULTS: nenhum lugar encontrado
-- OVER_QUERY_LIMIT: limite de quota excedido
-- REQUEST_DENIED: API Key inválida
-- INVALID_REQUEST: parâmetros incorretos
-
-// Solução: Log no console, não exibe erro visual
-console.log('Nenhum resultado encontrado:', status);
+marker.setLngLat([-8.839987, 13.289436]); // ❌ [lat, lng] NÃO FUNCIONA
 ```
-
-## Otimizações
-
-### 1. Refs para Performance
-
-```typescript
-const googleMapRef = useRef<google.maps.Map | null>(null);
-const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
-const markersRef = useRef<google.maps.Marker[]>([]);
-```
-
-**Motivo**: Evitar re-renders desnecessários ao manipular objetos do Google Maps
-
-### 2. Cleanup de Marcadores
-
-```typescript
-const clearMarkers = () => {
-	markersRef.current.forEach((marker) => marker.setMap(null));
-	markersRef.current = [];
-};
-
-// Chamado em:
-// - Nova busca (antes de adicionar novos marcadores)
-// - useEffect cleanup (unmount)
-```
-
-### 3. Debounce na Busca Inicial
-
-```typescript
-setTimeout(() => {
-	searchPlaces('tribunais');
-}, 500);
-```
-
-**Motivo**: Aguardar mapa renderizar completamente antes de buscar lugares
-
-## Personalização do Mapa
-
-```typescript
-googleMapRef.current = new google.maps.Map(mapRef.current, {
-	center: location, // Localização do usuário
-	zoom: 12, // Nível de zoom inicial
-	disableDefaultUI: false, // Mantém controles padrão
-	zoomControl: true, // Botões de zoom
-	mapTypeControl: false, // Sem botão satélite/mapa
-	streetViewControl: false, // Sem Street View
-	styles: [
-		// Remove POIs padrão
-		{
-			featureType: 'poi',
-			elementType: 'labels',
-			stylers: [{ visibility: 'off' }],
-		},
-	],
-});
-```
-
-## Marcadores
-
-### Cores e Ícones
-
-```typescript
-// Tribunal (vermelho)
-icon: {
-  url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
-  scaledSize: new google.maps.Size(40, 40),
-}
-
-// Escritório (azul)
-icon: {
-  url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
-  scaledSize: new google.maps.Size(40, 40),
-}
-
-// Localização do usuário (verde)
-icon: {
-  url: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
-  scaledSize: new google.maps.Size(32, 32),
-}
-```
-
-### Animação
-
-```typescript
-animation: google.maps.Animation.DROP;
-```
-
-Marcadores "caem" do topo quando criados.
-
-## Exemplo de Uso
-
-### Fluxo Típico do Usuário
-
-1. **Página carrega**
-   - Browser solicita permissão de localização
-   - Mapa centraliza na localização do usuário (ou Luanda)
-   - Marcador verde mostra posição do usuário
-   - Busca automática por tribunais num raio de 20km
-
-2. **Usuário clica em "Escritórios"**
-   - Botão fica azul (ativo)
-   - Marcadores antigos são removidos
-   - Loading spinner aparece
-   - Novos marcadores azuis aparecem no mapa
-   - Mapa ajusta zoom para mostrar todos
-
-3. **Usuário clica em um marcador**
-   - Card aparece na parte inferior
-   - Mostra nome, endereço, telefone, etc.
-   - Mapa faz pan para o marcador
-   - Zoom aumenta para 15
-
-4. **Usuário clica em "Obter Direções"**
-   - Abre Google Maps em nova aba
-   - Rota do ponto atual até o destino
-
-## Logs de Depuração
-
-O componente registra informações úteis no console:
-
-```typescript
-// Geolocalização
-console.log('Localização obtida:', coords);
-console.log('Erro ao obter localização:', error.message);
-console.log('Timeout de geolocalização - usando Luanda');
-
-// Places API
-console.log(\`Encontrados \${results.length} lugares para \${searchType}\`);
-console.log('Nenhum resultado encontrado:', status);
-console.warn('Mapa ou Places Service não inicializado');
-
-// Erros
-console.error('Erro ao inicializar mapa:', error);
-```
-
-## Limitações e Considerações
-
-### 1. Quotas da Places API
-
-- **Nearby Search**: $32 por 1000 requisições
-- **Place Details** (se implementado): $17 por 1000 requisições
-- Quota gratuita: $200/mês
-
-**Recomendação**: Monitorar uso no Google Cloud Console
-
-### 2. Precisão da Geolocalização
-
-- Depende do dispositivo e browser
-- Pode ser imprecisa em áreas urbanas densas
-- Fallback para Luanda sempre funciona
-
-### 3. Qualidade dos Resultados
-
-- Depende dos dados do Google Maps para Angola
-- Alguns lugares podem não ter telefone/website
-- Avaliações podem estar ausentes
-
-### 4. Performance
-
-- Busca limitada a 20 resultados por padrão (Google Places)
-- Raio de 20km pode retornar muitos ou poucos resultados
-- Marcar muitos pontos pode deixar o mapa lento
 
 ## Melhorias Futuras
 
-### Possíveis Features
+### 1. Dados Enriquecidos
 
-1. **Filtros Avançados**
-   - Filtrar por avaliação mínima
-   - Filtrar por distância máxima
-   - Mostrar apenas abertos agora
+Mapbox Geocoding API retorna dados básicos. Para informações detalhadas:
 
-2. **Informações Adicionais**
-   - Horário de funcionamento
-   - Fotos do lugar
-   - Reviews dos usuários
+**Opção A:** Usar Mapbox Search Box API (pago)
+- Inclui telefone, horário, fotos
+- https://docs.mapbox.com/api/search/search-box/
 
-3. **Clustering de Marcadores**
-   - Agrupar marcadores próximos
-   - Melhorar performance com muitos pontos
+**Opção B:** Integrar com outra API
+- Google Places API (pago)
+- Foursquare API
+- OpenStreetMap Nominatim (grátis)
 
-4. **Direções no Próprio Mapa**
-   - Exibir rota sem abrir Google Maps
-   - Usar Directions API
-
-5. **Salvar Favoritos**
-   - LocalStorage ou backend
-   - Lista de lugares salvos pelo usuário
-
-6. **Compartilhar Localização**
-   - Link direto para um lugar específico
-   - URL com parâmetros de query
-
-## Problemas Conhecidos e Soluções
-
-### 1. "Google Maps API não carregada"
-
-**Causa**: Script não carregou a tempo
-
-**Solução**:
+### 2. Filtros Avançados
 
 ```typescript
-// Já implementado: verificação de script existente
-const existingScript = document.querySelector(
-	'script[src*="maps.googleapis.com"]',
-);
+// Adicionar filtros no UI
+interface SearchFilters {
+  type: SearchType;
+  rating?: number;        // Mínimo de estrelas
+  openNow?: boolean;      // Aberto agora
+  distance?: number;      // Raio em km
+}
 ```
 
-### 2. "Geolocalização não suportada"
+### 3. Clustering de Marcadores
 
-**Causa**: Browser antigo ou HTTPS não configurado
+Para muitos resultados, usar Mapbox clusters:
 
-**Solução**: Fallback para Luanda sempre funciona
+```typescript
+map.addSource('places', {
+  type: 'geojson',
+  data: geojsonData,
+  cluster: true,
+  clusterMaxZoom: 14,
+  clusterRadius: 50
+});
+```
 
-### 3. Marcadores não aparecem
+### 4. Direções Integradas
 
-**Causa**:
+Usar Mapbox Directions API em vez de abrir Google Maps:
 
-- Places API não encontrou resultados
-- API Key sem permissão para Places API
-
-**Solução**: Verificar logs do console e configuração da API
-
-### 4. Card de info não fecha
-
-**Causa**: Estado React não atualiza
-
-**Solução**: Botão × chama `setSelectedPlace(null)`
-
-## Contato e Suporte
-
-Para questões sobre o componente:
-
-- Verificar logs do console browser
-- Conferir configuração da API Key
-- Testar em modo incógnito (permissões limpas)
-- Revisar quotas no Google Cloud Console
+```typescript
+// https://docs.mapbox.com/api/navigation/directions/
+const url = `https://api.mapbox.com/directions/v5/mapbox/driving/
+  ${userLng},${userLat};${destLng},${destLat}?
+  geometries=geojson&
+  access_token=${token}`;
+```
 
 ## Changelog
 
-### Versão 2.0 (Atual)
+### v2.0.0 (atual) - Migração para Mapbox
 
-- ✅ Implementada geolocalização do usuário
-- ✅ Fallback para Luanda (-8.839987, 13.289436)
-- ✅ Integração com Places API (nearbySearch)
-- ✅ Botões de busca (Tribunais/Escritórios)
-- ✅ Remoção de dados mockados
-- ✅ Interface responsiva com loading states
-- ✅ Tratamento robusto de erros
-- ✅ Marcador da localização do usuário (verde)
-- ✅ Card de informações detalhadas
-- ✅ Link para direções no Google Maps
+- ✅ Substituído Google Maps por Mapbox GL JS
+- ✅ Substituído Places API por Geocoding API
+- ✅ Atualizado formato de coordenadas `[lng, lat]`
+- ✅ Marcadores customizados com DOM elements
+- ✅ Mesma UX e funcionalidades
+- ⚠️ Perdidos: telefone, website, rating (limitação da API)
 
-### Versão 1.0 (Anterior)
+### v1.0.0 - Google Maps (deprecado)
 
-- Dados mockados hardcoded
-- Centro fixo em Lisboa
-- Sem busca dinâmica
-- Sem geolocalização
+- Google Maps JavaScript API
+- Google Places nearbySearch
+- Coordenadas `{lat, lng}`
+- Marcadores nativos `google.maps.Marker`
+
+## Licença
+
+Mapbox GL JS: BSD-3-Clause
+Mapbox APIs: Terms of Service - https://www.mapbox.com/legal/tos/
