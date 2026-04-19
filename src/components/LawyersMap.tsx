@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { MapPin, Phone, Globe, Star, AlertCircle, Loader2 } from 'lucide-react';
+import { MapPin, Phone, Globe, Star, AlertCircle, Loader2, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { servicesConfig } from '@/lib/config';
@@ -23,8 +24,6 @@ interface Place {
   position: [number, number]; // [lng, lat]
 }
 
-type SearchType = 'tribunais' | 'escritorios';
-
 const LawyersMap = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -32,7 +31,7 @@ const LawyersMap = () => {
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [activeSearch, setActiveSearch] = useState<SearchType>('tribunais');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -97,23 +96,21 @@ const LawyersMap = () => {
   };
 
   // Buscar lugares usando Mapbox Geocoding API
-  const searchPlaces = async (searchType: SearchType) => {
-    if (!mapRef.current) {
-      console.warn('Mapa não inicializado');
+  const searchPlaces = async (query: string) => {
+    if (!mapRef.current || !query.trim()) {
+      console.warn('Mapa não inicializado ou query vazia');
       return;
     }
 
     setIsSearching(true);
-    setActiveSearch(searchType);
     clearMarkers();
 
     const center = mapRef.current.getCenter();
-    const searchQuery = searchType === 'tribunais' ? 'tribunal' : 'escritório advocacia';
 
     try {
       // Usar Mapbox Geocoding API para buscar lugares
       const accessToken = servicesConfig.mapboxAccessToken;
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?proximity=${center.lng},${center.lat}&limit=20&country=AO&access_token=${accessToken}`;
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?proximity=${center.lng},${center.lat}&limit=20&country=AO&access_token=${accessToken}`;
 
       const response = await fetch(url);
 
@@ -124,7 +121,7 @@ const LawyersMap = () => {
       const data = await response.json();
       const results = data.features || [];
 
-      console.log(`Encontrados ${results.length} lugares para ${searchType}`);
+      console.log(`Encontrados ${results.length} lugares para "${query}"`);
 
       // Criar marcadores para os resultados
       results.forEach((place: any) => {
@@ -136,8 +133,7 @@ const LawyersMap = () => {
         el.style.width = '30px';
         el.style.height = '30px';
         el.style.borderRadius = '50%';
-        el.style.backgroundColor =
-          searchType === 'tribunais' ? '#ef4444' : '#3b82f6';
+        el.style.backgroundColor = '#3b82f6'; // Azul para todos os marcadores
         el.style.border = '3px solid white';
         el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
         el.style.cursor = 'pointer';
@@ -237,11 +233,6 @@ const LawyersMap = () => {
 
             userMarkerRef.current = userMarker;
           }
-
-          // Buscar tribunais por padrão
-          setTimeout(() => {
-            searchPlaces('tribunais');
-          }, 500);
         });
 
         map.on('error', (e) => {
@@ -347,40 +338,41 @@ const LawyersMap = () => {
           </div>
         )}
 
-        {/* Botões de Busca */}
-        <Card className="absolute top-4 left-4 z-10">
+        {/* Campo de Busca */}
+        <Card className="absolute top-4 left-4 z-10 w-80">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">Buscar no Mapa</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 space-y-2">
-            <Button
-              variant={activeSearch === 'tribunais' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => searchPlaces('tribunais')}
-              disabled={isSearching || !isLoaded}
-              className={`w-full justify-start ${activeSearch === 'tribunais' ? 'bg-red-600 hover:bg-red-700' : ''}`}
+          <CardContent className="pt-0">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (searchQuery.trim()) {
+                  searchPlaces(searchQuery);
+                }
+              }}
+              className="flex gap-2"
             >
-              {isSearching && activeSearch === 'tribunais' ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <div className="w-4 h-4 bg-red-500 rounded-full mr-2"></div>
-              )}
-              Tribunais
-            </Button>
-            <Button
-              variant={activeSearch === 'escritorios' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => searchPlaces('escritorios')}
-              disabled={isSearching || !isLoaded}
-              className={`w-full justify-start ${activeSearch === 'escritorios' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-            >
-              {isSearching && activeSearch === 'escritorios' ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <div className="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>
-              )}
-              Escritórios
-            </Button>
+              <Input
+                type="text"
+                placeholder="Ex: tribunal, escritório advocacia..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={isSearching || !isLoaded}
+                className="flex-1"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSearching || !isLoaded || !searchQuery.trim()}
+              >
+                {isSearching ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+              </Button>
+            </form>
           </CardContent>
         </Card>
 
@@ -391,13 +383,8 @@ const LawyersMap = () => {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <CardTitle className="text-lg">{selectedPlace.name}</CardTitle>
-                  <Badge
-                    variant={
-                      activeSearch === 'tribunais' ? 'destructive' : 'default'
-                    }
-                    className="mt-1"
-                  >
-                    {activeSearch === 'tribunais' ? 'Tribunal' : 'Escritório'}
+                  <Badge variant="default" className="mt-1">
+                    Lugar
                   </Badge>
                 </div>
                 <Button
