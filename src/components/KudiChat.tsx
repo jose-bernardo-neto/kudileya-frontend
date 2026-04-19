@@ -1,4 +1,6 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
 	Send,
 	Bot,
@@ -299,7 +301,34 @@ const KudiChat = ({ initialQuestion }: KudiChatProps) => {
 												: 'bg-muted border border-border text-foreground'
 										}`}
 									>
-										<p className='leading-relaxed'>{message.content}</p>
+										{message.sender === 'ai' ? (
+											<div
+												className='prose prose-sm dark:prose-invert max-w-none leading-relaxed
+												[&_p]:mb-2 [&_p:last-child]:mb-0
+												[&_ul]:my-2 [&_ul]:pl-4 [&_ul]:list-disc
+												[&_ol]:my-2 [&_ol]:pl-4 [&_ol]:list-decimal
+												[&_li]:mb-1
+												[&_strong]:font-semibold
+												[&_em]:italic
+												[&_code]:bg-black/10 [&_code]:dark:bg-white/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono
+												[&_pre]:bg-black/10 [&_pre]:dark:bg-white/10 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:my-2 [&_pre]:text-xs
+												[&_blockquote]:border-l-2 [&_blockquote]:border-current [&_blockquote]:pl-3 [&_blockquote]:opacity-80 [&_blockquote]:my-2
+												[&_h1]:text-base [&_h1]:font-bold [&_h1]:mb-2
+												[&_h2]:text-sm [&_h2]:font-bold [&_h2]:mb-1
+												[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1
+												[&_a]:underline [&_a]:opacity-80 [&_a:hover]:opacity-100
+												[&_hr]:border-current [&_hr]:opacity-20 [&_hr]:my-2
+												[&_table]:w-full [&_table]:text-xs [&_table]:my-2
+												[&_th]:font-semibold [&_th]:text-left [&_th]:border [&_th]:border-current [&_th]:border-opacity-20 [&_th]:px-2 [&_th]:py-1
+												[&_td]:border [&_td]:border-current [&_td]:border-opacity-20 [&_td]:px-2 [&_td]:py-1'
+											>
+												<ReactMarkdown remarkPlugins={[remarkGfm]}>
+													{message.content}
+												</ReactMarkdown>
+											</div>
+										) : (
+											<p className='leading-relaxed'>{message.content}</p>
+										)}
 										<div className='flex items-center justify-between mt-2'>
 											<p className='text-xs opacity-70'>
 												{message.timestamp.toLocaleTimeString()}
