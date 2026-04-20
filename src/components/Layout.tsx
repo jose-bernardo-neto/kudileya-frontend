@@ -149,8 +149,8 @@ const Layout = ({ children, currentPage, onNavigate }: LayoutProps) => {
 				</div>
 			</nav>
 
-			{/* WhatsApp Floating Button */}
-			{featureFlags.enableWhatsapp && (
+			{/* WhatsApp Floating Button - Hidden on chat page */}
+			{featureFlags.enableWhatsapp && currentPage !== 'chat' && (
 				<div className='fixed bottom-24 right-6 md:bottom-6 z-50'>
 					<a
 						href={apiHelpers.getWhatsAppUrl()}
