@@ -41,6 +41,49 @@ const MAX_MESSAGES = 50;
 /** Nº de mensagens anteriores enviadas à API como janela de contexto. */
 const CONTEXT_WINDOW = 5;
 
+// ---------------------------------------------------------------------------
+// Mock responses - ativado via VITE_USE_MOCK
+// ---------------------------------------------------------------------------
+const MOCK_RESPONSE = `Olá! Eu sou o KudiChat, um assistente jurídico virtual desenvolvido para explicar as leis angolanas de forma simples, clara e acessível. Faço parte da aplicação kudileya.
+
+Fui criado pelos estudantes do Instituto Politécnico Privado Smartbits como projeto de TCC:
+
+- **Donato Batila Barata**
+- **José Neto**
+- **Samuel Katendi**
+
+O meu objetivo é ajudar cidadãos, estudantes e utilizadores a compreenderem os seus direitos, deveres e leis de Angola usando uma linguagem fácil de entender.
+
+## O que são leis?
+
+As leis são regras criadas pelo Estado para organizar a sociedade, garantir justiça, segurança e proteger os direitos das pessoas.
+
+Elas dizem o que pode ou não pode ser feito e ajudam a manter a ordem no país. Quem não cumpre uma lei pode sofrer consequências legais, como multas ou outras punições previstas na legislação.
+
+### Exemplo simples:
+
+- A **Constituição** protege direitos como educação, saúde e liberdade.
+- O **Código da Estrada** define regras para conduzir veículos.
+- O **Código Penal** define crimes e punições.`;
+
+/**
+ * Verifica se a pergunta do usuário deve receber uma resposta mockada
+ */
+const shouldUseMockResponse = (question: string): boolean => {
+	const useMock = import.meta.env.VITE_USE_MOCK === 'true';
+	if (!useMock) return false;
+
+	const normalizedQuestion = question.toLowerCase().trim();
+	
+	// Palavras-chave que indicam perguntas sobre criação/identidade ou sobre leis
+	const creatorKeywords = ['quem te criou', 'quem criou você', 'quem é você', 'quem és tu', 'teu criador', 'seu criador'];
+	const lawKeywords = ['o que são leis', 'o que é lei', 'o que sao leis', 'define lei', 'definir leis', 'explica leis'];
+	
+	const allKeywords = [...creatorKeywords, ...lawKeywords];
+	
+	return allKeywords.some(keyword => normalizedQuestion.includes(keyword));
+};
+
 const KudiChat = ({ initialQuestion }: KudiChatProps) => {
 	const [messages, setMessages] = React.useState<Message[]>([]);
 	const [input, setInput] = React.useState('');
@@ -165,6 +208,22 @@ const KudiChat = ({ initialQuestion }: KudiChatProps) => {
 		setIsLoading(true);
 
 		try {
+			// Verifica se deve usar resposta mockada
+			if (shouldUseMockResponse(userMessage.content)) {
+				// Simula um pequeno delay para parecer mais natural
+				await new Promise((resolve) => setTimeout(resolve, 800));
+
+				const aiMessage: Message = {
+					id: (Date.now() + 1).toString(),
+					content: MOCK_RESPONSE,
+					sender: 'ai',
+					timestamp: new Date(),
+				};
+
+				setMessages((prev) => [...prev, aiMessage]);
+				return;
+			}
+
 			// Janela de contexto: últimas CONTEXT_WINDOW mensagens antes da nova
 			const contextMessages = messages.slice(-CONTEXT_WINDOW).map((msg) => ({
 				role: msg.sender === 'user' ? 'user' : 'assistant',
